@@ -10,6 +10,8 @@ class SolverParameters:
     def __init__(self,
                  eps: np.double = 0.01,
                  r: np.double = 2.0,
+                 alpha = 0.01,
+                 pareto_weight = 0.98,
                  iters_limit: int = 20000,
                  evolvent_density: int = 10,
                  eps_r: np.double = 0.01,
@@ -29,6 +31,8 @@ class SolverParameters:
              меньше вероятность преждевременной остановки.
         :param r: Параметр надежности. Более высокое значение r -- более медленная сходимость,
              более высокая вероятность нахождения глобального минимума.
+        :param alpha: Параметр учёта расстояния до разделяющей гиперплоскости, аппроксимирующей область Парето.
+        :param pareto_weight: Вес точки, входящей в область Парето. Используется при построении разделяющей гиперплоскости.
         :param iters_limit: максимальное число поисковых испытаний.
         :param evolvent_density: плотность построения развертки.
              По умолчанию плотность :math:`2^{-10}` на гиперкубе :math:`[0,1]^N`,
@@ -43,6 +47,8 @@ class SolverParameters:
         """
         self.eps = eps
         self.r = r
+        self.alpha = alpha
+        self.pareto_weight = pareto_weight
         self.iters_limit = iters_limit
         self.proportion_of_global_iterations = proportion_of_global_iterations
         if refine_solution:

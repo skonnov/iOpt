@@ -12,6 +12,9 @@ from iOpt.solution import Solution
 from iOpt.solver_parametrs import SolverParameters
 from iOpt.method.process import Process
 
+from sklearn.linear_model import LinearRegression
+# TODO: remove random usage?
+import random
 
 class MCOProcess(Process):
     """
@@ -90,6 +93,34 @@ class MCOProcess(Process):
             max_iter_for_convolution = int((self.parameters.global_method_iteration_count /
                                             self.number_of_lambdas) * (self.current_num_lambda + 1))
             self.method.set_max_iter_for_convolution(max_iter_for_convolution)
+            self.calculate_sep_hyperplane()
+
+    def calc_distance(self, float_variables_1, float_variables_2):
+        dist = 0.
+        for i in range(len(float_variables_1)):
+            dist += (float_variables_1[i] - float_variables_2[i]) ** 2
+        dist **= 1 / 2
+        return dist
+
+    def calculate_sep_hyperplane(self) -> None:
+        lr = LinearRegression()
+        dots = [(trial, 1) for trial in self.search_data.solution.best_trials]
+        dot_in = 0
+        dot_out = 0
+        for dot in self.search_data:
+            is_best_dot = False
+            for best_dot in self.search_data.solution.best_trials:
+                if abs(self.calc_distance(dot.point.float_variables, best_dot.point.float_variables)) < 1e-5:
+                    is_best_dot = True
+                    dot_in += 1
+                    break
+            if not is_best_dot:
+                dot_out += 1
+                dots.append((dot, 0))
+        random.shuffle(dots)
+        fit_data = [[func_value.value for func_value in dot.function_values] for (dot, _) in dots]
+        fit_data_class = [dot_class * self.parameters.pareto_weight for (_, dot_class) in dots]
+        lr.fit(fit_data, fit_data_class)
 
     def init_lambdas(self) -> None:
         if self.task.problem.number_of_objectives == 2:  # двумерный случай
