@@ -3,6 +3,8 @@ from datetime import datetime
 
 import traceback
 
+import numpy as np
+
 from iOpt.evolvent.evolvent import Evolvent
 from iOpt.method.listener import Listener
 from iOpt.method.method import Method
@@ -15,6 +17,7 @@ from iOpt.method.process import Process
 from sklearn.linear_model import LinearRegression
 # TODO: remove random usage?
 import random
+import matplotlib.pyplot as plt
 
 class MCOProcess(Process):
     """
@@ -103,7 +106,6 @@ class MCOProcess(Process):
         return dist
 
     def calculate_sep_hyperplane(self) -> None:
-        lr = LinearRegression()
         dots = [(trial, 1) for trial in self.search_data.solution.best_trials]
         dot_in = 0
         dot_out = 0
@@ -117,10 +119,41 @@ class MCOProcess(Process):
             if not is_best_dot:
                 dot_out += 1
                 dots.append((dot, 0))
+        print("DOTS IN: ", dot_in, "DOTS OUT:", dot_out, " <================|||")
         random.shuffle(dots)
         fit_data = [[func_value.value for func_value in dot.function_values] for (dot, _) in dots]
         fit_data_class = [dot_class * self.parameters.pareto_weight for (_, dot_class) in dots]
-        lr.fit(fit_data, fit_data_class)
+
+        test_size = int(len(fit_data) * 0.3)
+
+        data_train       = fit_data[:-test_size]
+        data_class_train = fit_data_class[:-test_size]
+        data_test        = fit_data[-test_size:]
+        # fit_data_class_test  = fit_data_class[-test_size:]
+
+        for i in range(len(data_train)):
+            print("--> ", data_train[i][0], data_train[i][1], " <--")
+
+        lr = LinearRegression()
+        lr.fit([[data_train[i][0]] for i in range(len(data_train))], [data_train[i][1] for i in range(len(data_train))])
+        print("--->", lr.coef_, " <--- !2!")
+
+        data_test_pred = lr.predict([[data_test[i][0]] for i in range(len(data_test))])
+
+        # TMP: draw plt with all dots and linear regression function
+        plt.figure()
+        for (dot, is_pareto) in dots:
+            color = "red"
+            if not is_pareto:
+                color = "blue"
+            plt.scatter([dot.function_values[0].value], [dot.function_values[1].value], c=color)
+        # xs = np.arange(-12, 2, 0.01)
+        # y = [lr.coef_[0] * x + lr.coef_[1] for x in xs]
+        # plt.plot(xs, y)
+        plt.plot([data_test[i][0] for i in range(len(data_test))], data_test_pred)
+
+        plt.show()
+        
 
     def init_lambdas(self) -> None:
         if self.task.problem.number_of_objectives == 2:  # двумерный случай
