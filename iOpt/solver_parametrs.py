@@ -4,12 +4,14 @@ from iOpt.trial import Point
 
 class SolverParameters:
     """
-    The SolverParameters class allows you to define the parameters for searching the optimal solution
+    Класс SolverParameters позволяет определить параметры поиска оптимального решения
     """
 
     def __init__(self,
                  eps: np.double = 0.01,
                  r: np.double = 2.0,
+                 alpha = 0.01,
+                 pareto_weight = 0.98,
                  iters_limit: int = 20000,
                  evolvent_density: int = 10,
                  eps_r: np.double = 0.01,
@@ -30,6 +32,8 @@ class SolverParameters:
              less likely to stop prematurely.
         :param r: Reliability parameter. Higher value of r -- slower convergence,
              higher probability of finding a global minimum.
+        :param alpha: Parameter for the distance to the separating hyperplane that approximates Pareto area.
+        :param pareto_weight: The weight of each point included to the Pareto field. Used when constructing a separating hyperplane.
         :param iters_limit: maximum number of search trials.
         :param evolvent_density: density of evolvent construction.
              The default density is :math:`2^{-10}` on the hypercube :math:`[0,1]^N`,
@@ -44,6 +48,8 @@ class SolverParameters:
         """
         self.eps = eps
         self.r = r
+        self.alpha = alpha
+        self.pareto_weight = pareto_weight
         self.iters_limit = iters_limit
         self.proportion_of_global_iterations = proportion_of_global_iterations
         if refine_solution:
