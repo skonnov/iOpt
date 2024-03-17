@@ -14,7 +14,11 @@ from iOpt.solution import Solution
 from iOpt.solver_parametrs import SolverParameters
 from iOpt.method.process import Process
 
-from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn import svm
+from sklearn.inspection import DecisionBoundaryDisplay
+
 # TODO: remove random usage?
 import random
 import matplotlib.pyplot as plt
@@ -120,37 +124,60 @@ class MCOProcess(Process):
                 dot_out += 1
                 dots.append((dot, 0))
         print("DOTS IN: ", dot_in, "DOTS OUT:", dot_out, " <================|||")
-        random.shuffle(dots)
-        fit_data = [[func_value.value for func_value in dot.function_values] for (dot, _) in dots]
-        fit_data_class = [dot_class * self.parameters.pareto_weight for (_, dot_class) in dots]
+        # random.shuffle(dots)
+        fit_data = np.array([[func_value.value for func_value in dot.function_values] for (dot, _) in dots])
+        fit_data_class = np.array([dot_class for (_, dot_class) in dots])
+        fit_data_prob = np.array([self.parameters.pareto_weight if dot_class else (1 - self.parameters.pareto_weight) for (_, dot_class) in dots])
 
         test_size = int(len(fit_data) * 0.3)
 
-        data_train       = fit_data[:-test_size]
-        data_class_train = fit_data_class[:-test_size]
-        data_test        = fit_data[-test_size:]
-        # fit_data_class_test  = fit_data_class[-test_size:]
 
-        for i in range(len(data_train)):
-            print("--> ", data_train[i][0], data_train[i][1], " <--")
 
-        lr = LinearRegression()
-        lr.fit([[data_train[i][0]] for i in range(len(data_train))], [data_train[i][1] for i in range(len(data_train))])
-        print("--->", lr.coef_, " <--- !2!")
+        # data_train       = fit_data[:-test_size]
+        # data_class_train = fit_data_class[:-test_size]
+        # data_test        = fit_data[-test_size:]
+        # # data_class_test  = fit_data_class[-test_size:]
 
-        data_test_pred = lr.predict([[data_test[i][0]] for i in range(len(data_test))])
+        clf = svm.LinearSVC(class_weight={1: 98})  # todo: use self.parameters.pareto_weight?
+        # clf = svm.LinearSVC(class_weight={1: self.parameters.pareto_weight})
+        # clf = svm.LinearSVC(class_weight={0: 1 - self.parameters.pareto_weight, 1: self.parameters.pareto_weight})
+        # clf = svm.LinearSVC(class_weight={0: 100 * (1 - self.parameters.pareto_weight), 1: 100 * self.parameters.pareto_weight})
+        clf.fit(fit_data, fit_data_class)
+
+
+        # W = clf.coef_[0]
+        # I = clf.intercept_
+        # a = -W[0] / W[1]
+        # b = I[0] / W[1]
+
+        # xs = np.arange(-12, 2, 0.01)
+        # y = [a * x + b for x in xs]
+
+        ax = plt.gca()
+        DecisionBoundaryDisplay.from_estimator(
+            clf,
+            fit_data,
+            plot_method="contour",
+            colors="k",
+            levels=[0],
+            alpha=0.5,
+            linestyles=["-"],
+            ax=ax,
+        )
+
+        self.d = clf.decision_function(fit_data)  # need to divide the function values by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
+        maxx = max(self.d)
+        minn = min(self.d)
+        self.d = [di / maxx if di > 0 else -di / minn for di in self.d]
 
         # TMP: draw plt with all dots and linear regression function
-        plt.figure()
-        for (dot, is_pareto) in dots:
-            color = "red"
-            if not is_pareto:
-                color = "blue"
-            plt.scatter([dot.function_values[0].value], [dot.function_values[1].value], c=color)
+
+        plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
+
         # xs = np.arange(-12, 2, 0.01)
         # y = [lr.coef_[0] * x + lr.coef_[1] for x in xs]
         # plt.plot(xs, y)
-        plt.plot([data_test[i][0] for i in range(len(data_test))], data_test_pred)
+        # # plt.plot([data_test[i][0] for i in range(len(data_test))], data_test_pred)
 
         plt.show()
         
