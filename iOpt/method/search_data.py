@@ -12,10 +12,9 @@ from iOpt.problem import Problem
 from iOpt.solution import Solution
 from iOpt.trial import Point, FunctionValue, FunctionType
 from iOpt.trial import Trial
-
+from sklearn import svm
 
 # from bintrees import AVLTree
-
 
 class SearchDataItem(Trial):
     """
@@ -239,6 +238,11 @@ class SearchData:
         self._allTrials = []
         self._RGlobalQueue = CharacteristicsQueue(maxlen)
         self.__firstDataItem: SearchDataItem = None
+
+        self.is_hyperplane_init = False
+        self.clf = svm.LinearSVC(class_weight={1: 98})  # todo: use self.parameters.pareto_weight?
+        self.d_min = 0.
+        self.d_max = 0.
 
     def clear_queue(self):
         """

@@ -86,33 +86,38 @@ class MCOMethodManyLambdas(MCOMethod):
         fit_data_class = np.array([dot_class for (_, dot_class) in dots])
         # fit_data_prob = np.array([self.parameters.pareto_weight if dot_class else (1 - self.parameters.pareto_weight) for (_, dot_class) in dots])
 
-        clf = svm.LinearSVC(class_weight={1: 98})  # todo: use self.parameters.pareto_weight?
+        # clf = svm.LinearSVC(class_weight={1: 98})  # todo: use self.parameters.pareto_weight?
         # clf = svm.LinearSVC(class_weight={1: self.parameters.pareto_weight})
         # clf = svm.LinearSVC(class_weight={0: 1 - self.parameters.pareto_weight, 1: self.parameters.pareto_weight})
         # clf = svm.LinearSVC(class_weight={0: 100 * (1 - self.parameters.pareto_weight), 1: 100 * self.parameters.pareto_weight})
-        clf.fit(fit_data, fit_data_class)
+        self.search_data.clf.fit(fit_data, fit_data_class)
 
-        ax = plt.gca()
-        DecisionBoundaryDisplay.from_estimator(
-            clf,
-            fit_data,
-            plot_method="contour",
-            colors="k",
-            levels=[0],
-            alpha=0.5,
-            linestyles=["-"],
-            ax=ax,
-        )
+        # TODO: do not store distances in array
+        d = self.search_data.clf.decision_function(fit_data)  # need to divide the function values by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
+        self.search_data.d_min = min(d)
+        self.search_data.d_max = max(d)
 
-        self.d = clf.decision_function(fit_data)  # need to divide the function values by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
-        maxx = max(self.d)
-        minn = min(self.d)
-        self.d = [di / maxx if di > 0 else -di / minn for di in self.d]
+        self.search_data.is_hyperplane_init = True
 
-        # TMP: draw plt with all dots and linear regression function
-        plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
 
-        plt.show()
+        if self.current_num_lambda == self.number_of_lambdas - 1:
+            ax = plt.gca()
+            if self.search_data.is_hyperplane_init:
+                DecisionBoundaryDisplay.from_estimator(
+                    self.search_data.clf,
+                    fit_data,
+                    plot_method="contour",
+                    colors="k",
+                    levels=[0],
+                    alpha=0.5,
+                    linestyles=["-"],
+                    ax=ax,
+                )
+
+            # TMP: draw plt with all dots and linear regression function
+            plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
+            print(len(fit_data), " <----- number of dots!")
+            plt.show()
 
     def init_lambdas(self) -> None:
         if self.task.problem.number_of_objectives == 2:
