@@ -9,6 +9,7 @@ from iOpt.method.index_method import IndexMethod
 from iOpt.method.index_method_evaluate import IndexMethodEvaluate
 from iOpt.method.listener import Listener
 from iOpt.method.mco_method_many_lambdas import MCOMethodManyLambdas
+from iOpt.method.mco_method_many_lambdas_hyperplane import MCOMethodManyLambdasHyperplane
 from iOpt.method.method import Method
 from iOpt.method.mixed_integer_method import MixedIntegerMethod
 from iOpt.method.mco_method_evaluate import MCOMethodEvaluate
@@ -73,7 +74,8 @@ class SolverFactory:
                       task: OptimizationTask,
                       evolvent: Evolvent,
                       search_data: SearchData,
-                      calculator: Calculator) -> Method:
+                      calculator: Calculator,
+                      useHyperplaneCalc: bool = False) -> Method:
         """
         Create a suitable solution method class based on the given parameters
 
@@ -86,7 +88,10 @@ class SolverFactory:
         :return: created method
         """
         if task.problem.number_of_objectives > 1:
-            return MCOMethodManyLambdas(parameters, task, evolvent, search_data, calculator)
+            if useHyperplaneCalc:
+                return MCOMethodManyLambdasHyperplane(parameters, task, evolvent, search_data, calculator)
+            else:
+                return MCOMethodManyLambdas(parameters, task, evolvent, search_data, calculator)
         elif task.problem.number_of_discrete_variables > 0:
             return MixedIntegerMethod(parameters, task, evolvent, search_data, calculator)
         elif task.problem.number_of_constraints > 0:

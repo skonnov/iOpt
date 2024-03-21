@@ -258,8 +258,6 @@ class Method:
         new = copy.deepcopy(SearchDataItem(Point(newy, []), newx,
                                            function_values=[FunctionValue()] * self.numberOfAllFunctions))
 
-        print("ADD new point ", new.cnt)
-
         # Обновление числа испытаний
         self.search_data.solution.number_of_global_trials += 1
 

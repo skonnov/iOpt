@@ -5,11 +5,6 @@ from iOpt.method.mco_optim_task import MCOOptimizationTask
 from iOpt.method.search_data import SearchData
 from iOpt.solver_parametrs import SolverParameters
 
-import numpy as np
-import matplotlib.pyplot as plt
-
-from sklearn import svm
-from sklearn.inspection import DecisionBoundaryDisplay
 
 class MCOMethodManyLambdas(MCOMethod):
     """
@@ -59,65 +54,6 @@ class MCOMethodManyLambdas(MCOMethod):
             max_iter_for_convolution = int((self.parameters.global_method_iteration_count /
                                             self.number_of_lambdas) * (self.current_num_lambda + 1))
             self.set_max_iter_for_convolution(max_iter_for_convolution)
-            self.calculate_sep_hyperplane()
-
-    def calc_distance(self, float_variables_1, float_variables_2):
-        dist = 0.
-        for i in range(len(float_variables_1)):
-            dist += (float_variables_1[i] - float_variables_2[i]) ** 2
-        dist **= 1 / 2
-        return dist
-
-    def calculate_sep_hyperplane(self) -> None:
-        dots = [(trial, 1) for trial in self.search_data.solution.best_trials]
-        dot_in = 0
-        dot_out = 0
-        for dot in self.search_data:
-            is_best_dot = False
-            for best_dot in self.search_data.solution.best_trials:
-                if abs(self.calc_distance(dot.point.float_variables, best_dot.point.float_variables)) < 1e-5:
-                    is_best_dot = True
-                    dot_in += 1
-                    break
-            if not is_best_dot:
-                dot_out += 1
-                dots.append((dot, 0))
-        fit_data = np.array([[func_value.value for func_value in dot.function_values] for (dot, _) in dots])
-        fit_data_class = np.array([dot_class for (_, dot_class) in dots])
-        # fit_data_prob = np.array([self.parameters.pareto_weight if dot_class else (1 - self.parameters.pareto_weight) for (_, dot_class) in dots])
-
-        # clf = svm.LinearSVC(class_weight={1: 98})  # todo: use self.parameters.pareto_weight?
-        # clf = svm.LinearSVC(class_weight={1: self.parameters.pareto_weight})
-        # clf = svm.LinearSVC(class_weight={0: 1 - self.parameters.pareto_weight, 1: self.parameters.pareto_weight})
-        # clf = svm.LinearSVC(class_weight={0: 100 * (1 - self.parameters.pareto_weight), 1: 100 * self.parameters.pareto_weight})
-        self.search_data.clf.fit(fit_data, fit_data_class)
-
-        # TODO: do not store distances in array
-        d = self.search_data.clf.decision_function(fit_data)  # need to divide the function values by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
-        self.search_data.d_min = min(d)
-        self.search_data.d_max = max(d)
-
-        self.search_data.is_hyperplane_init = True
-
-
-        if self.current_num_lambda == self.number_of_lambdas - 1:
-            ax = plt.gca()
-            if self.search_data.is_hyperplane_init:
-                DecisionBoundaryDisplay.from_estimator(
-                    self.search_data.clf,
-                    fit_data,
-                    plot_method="contour",
-                    colors="k",
-                    levels=[0],
-                    alpha=0.5,
-                    linestyles=["-"],
-                    ax=ax,
-                )
-
-            # TMP: draw plt with all dots and linear regression function
-            plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
-            print(len(fit_data), " <----- number of dots!")
-            plt.show()
 
     def init_lambdas(self) -> None:
         if self.task.problem.number_of_objectives == 2:
