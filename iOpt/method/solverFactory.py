@@ -20,7 +20,7 @@ from iOpt.method.parallel_process import ParallelProcess
 from iOpt.method.process import Process
 from iOpt.method.search_data import SearchData
 from iOpt.solver_parametrs import SolverParameters
-
+from iOpt.models.model import Model
 
 class SolverFactory:
     """
@@ -75,7 +75,7 @@ class SolverFactory:
                       evolvent: Evolvent,
                       search_data: SearchData,
                       calculator: Calculator,
-                      useHyperplaneCalc: bool = False) -> Method:
+                      model: Model = None) -> Method:
         """
         Create a suitable solution method class based on the given parameters
 
@@ -88,8 +88,8 @@ class SolverFactory:
         :return: created method
         """
         if task.problem.number_of_objectives > 1:
-            if useHyperplaneCalc:
-                return MCOMethodManyLambdasHyperplane(parameters, task, evolvent, search_data, calculator)
+            if model is not None:
+                return MCOMethodManyLambdasHyperplane(parameters, task, evolvent, search_data, calculator, model)
             else:
                 return MCOMethodManyLambdas(parameters, task, evolvent, search_data, calculator)
         elif task.problem.number_of_discrete_variables > 0:

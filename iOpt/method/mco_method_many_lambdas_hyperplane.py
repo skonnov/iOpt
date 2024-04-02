@@ -1,4 +1,13 @@
+from iOpt.evolvent.evolvent import Evolvent
+from iOpt.method.calculator import Calculator
+from iOpt.method.mco_method import MCOMethod
+from iOpt.method.mco_optim_task import MCOOptimizationTask
+from iOpt.method.search_data import SearchData
+from iOpt.solver_parametrs import SolverParameters
+from iOpt.models.model import Model
 from iOpt.method.mco_method_many_lambdas import MCOMethodManyLambdas
+from iOpt.method.search_data import SearchDataItem
+
 
 import numpy as np
 
@@ -9,6 +18,17 @@ class MCOMethodManyLambdasHyperplane(MCOMethodManyLambdas):
     method with the construction of a separating hyperplane using machine
     learning methods
     """
+    def __init__(self,
+                 parameters: SolverParameters,
+                 task: MCOOptimizationTask,
+                 evolvent: Evolvent,
+                 search_data: SearchData,
+                 calculator: Calculator,
+                 model: Model,
+                 ):
+        super().__init__(parameters, task, evolvent, search_data, calculator)
+        self.model = model
+
 
     def change_lambdas(self) -> None:
         super().change_lambdas()
@@ -27,16 +47,12 @@ class MCOMethodManyLambdasHyperplane(MCOMethodManyLambdas):
                 dots.append((dot, 0))
         fit_data = np.array([[func_value.value for func_value in dot.function_values] for (dot, _) in dots])
         fit_data_class = np.array([dot_class for (_, dot_class) in dots])
-        # fit_data_prob = np.array([self.parameters.pareto_weight if dot_class else (1 - self.parameters.pareto_weight) for (_, dot_class) in dots])
 
-        # clf = svm.LinearSVC(class_weight={1: 98})  # todo: use self.parameters.pareto_weight?
-        # clf = svm.LinearSVC(class_weight={1: self.parameters.pareto_weight})
-        # clf = svm.LinearSVC(class_weight={0: 1 - self.parameters.pareto_weight, 1: self.parameters.pareto_weight})
-        # clf = svm.LinearSVC(class_weight={0: 100 * (1 - self.parameters.pareto_weight), 1: 100 * self.parameters.pareto_weight})
+        self.model.fit(fit_data, fit_data_class)
 
-        self.search_data.clf.fit(fit_data, fit_data_class)
-        # TODO: do not store distances in array
-        d = self.search_data.clf.decision_function(fit_data)  # need to divide the function values by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
-        self.search_data.d_min = min(d)
-        self.search_data.d_max = max(d)
-        self.search_data.is_hyperplane_init = True
+    def calculate_global_r(self, curr_point: SearchDataItem, left_point: SearchDataItem) -> None:
+        super().calculate_global_r(curr_point, left_point)
+        if left_point is None:
+            return None
+        r_ps = self.model.calculate_r_ps(curr_point, left_point)
+        curr_point.globalR += self.parameters.alpha * r_ps

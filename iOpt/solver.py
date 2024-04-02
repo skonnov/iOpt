@@ -14,6 +14,7 @@ from iOpt.problem import Problem
 from iOpt.routine.timeout import timeout
 from iOpt.solution import Solution
 from iOpt.solver_parametrs import SolverParameters
+from iOpt.models.model import Model
 
 
 class Solver:
@@ -26,7 +27,7 @@ class Solver:
     def __init__(self,
                  problem: Problem,
                  parameters: SolverParameters = SolverParameters(),
-                 useHyperplaneCalc: bool = False
+                 model: Model = None
                  ):
         """
         Solver class constructor
@@ -50,7 +51,7 @@ class Solver:
         self.calculator = SolverFactory.create_calculator(self.task, self.parameters)
 
         self.method = SolverFactory.create_method(parameters, self.task, self.evolvent,
-                                                  self.search_data, self.calculator, useHyperplaneCalc)
+                                                  self.search_data, self.calculator, model)
         self.process = SolverFactory.create_process(parameters=parameters, task=self.task, evolvent=self.evolvent,
                                                     search_data=self.search_data, method=self.method,
                                                     listeners=self.__listeners, calculator=self.calculator)
