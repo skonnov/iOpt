@@ -104,19 +104,22 @@ class IndexMethod(Method):
             v = left_point.get_index()
             global_r = 2 * deltax - 4 * (zl - self.Z[v]) / (r * self.M[v])
         if self.search_data.is_hyperplane_init:
-            d1 = self.search_data.clf.decision_function([[pt.value for pt in left_point.function_values]])
-            d2 = self.search_data.clf.decision_function([[pt.value for pt in curr_point.function_values]])
-            if d1 < 0:
-                d1 = -d1 / self.search_data.d_min
-            else:
-                d1 = d1 / self.search_data.d_max
-
-            if d2 < 0:
-                d2 = -d2 / self.search_data.d_min
-            else:
-                d2 = d2 / self.search_data.d_max
-
-            r_ps = d1 + d2
+            p1 = self.search_data.clf.predict_proba([[pt.value for pt in left_point.function_values]])
+            p2 = self.search_data.clf.predict_proba([[pt.value for pt in curr_point.function_values]])
+            r_ps = (p1[0][1] + p2[0][1]) / 2  # [1]?
+            # d1 = self.search_data.clf.decision_function([[pt.value for pt in left_point.function_values]])
+            # d2 = self.search_data.clf.decision_function([[pt.value for pt in curr_point.function_values]])
+            # if d1 < 0:
+            #     d1 = -d1 / self.search_data.d_min
+            # else:
+            #     d1 = d1 / self.search_data.d_max
+            #
+            # if d2 < 0:
+            #     d2 = -d2 / self.search_data.d_min
+            # else:
+            #     d2 = d2 / self.search_data.d_max
+            #
+            # r_ps = d1 + d2
         else:
             r_ps = 0.
         curr_point.globalR = global_r + self.parameters.alpha * r_ps

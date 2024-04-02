@@ -240,7 +240,7 @@ class SearchData:
         self.__firstDataItem: SearchDataItem = None
 
         self.is_hyperplane_init = False
-        self.clf = svm.LinearSVC(class_weight={1: 98}, dual="auto")  # todo: use self.parameters.pareto_weight?
+        self.clf = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear')#, dual="auto")  # todo: use self.parameters.pareto_weight?
         self.d_min = 0.
         self.d_max = 0.
 
