@@ -20,3 +20,6 @@ class ModelLinearSVCproba(Model):
         p2 = self.svc.predict_proba([[pt.value for pt in curr_point.function_values]])
         r_ps = (p1[0][1] + p2[0][1]) / 2  # [1]?
         return r_ps
+
+    def get_model(self):
+        return self.svc

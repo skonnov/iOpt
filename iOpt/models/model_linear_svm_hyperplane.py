@@ -38,3 +38,6 @@ class ModelLinearSVChyperplane(Model):
 
         r_ps = d1 + d2
         return r_ps
+
+    def get_model(self):
+        return self.svc

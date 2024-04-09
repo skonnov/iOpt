@@ -2,14 +2,18 @@ from abc import ABC, abstractmethod
 from iOpt.method.search_data import SearchDataItem
 
 
-class Model:
+class Model(ABC):
     def __init__(self):
         pass
 
-    # @abstractmethod
+    @abstractmethod
     def fit(self, X: list, y: list):
         pass
 
-    # @abstractmethod
+    @abstractmethod
     def calculate_r_ps(self, curr_point: SearchDataItem, left_point: SearchDataItem):
+        pass
+
+    @abstractmethod
+    def get_model(self):
         pass
