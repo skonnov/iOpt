@@ -82,10 +82,12 @@ if __name__ == "__main__":
     now = datetime.now()
     dt_string = now.strftime("%Y-%m-%d_%H-%M-%S")
     filename = "mso_grishagin_" + dt_string
+
     with open(filename, "w") as f:
         print("f = functions ids, a = alpha, hw = hw_index, n = number of iterations, e = target accuracy, ", end='', file=f)
         print("d_mgsa = approach without machine learning methods, ", end='', file=f)
         print("d_appr = approach with distance to the hyperplane, d_prob = approach with probabilities", file=f)
+        time1 = time.time()
         for func_1, func_2 in func_ids:
             print("f", func_1, func_2, file=f)
             # approach with distance to the hypeplane
@@ -107,5 +109,6 @@ if __name__ == "__main__":
                     model = ModelLinearSVCproba()
                     hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps)
                     print("hw", hw_index, "n", iter_count, file=f)
-
                 f.flush()
+        time2 = time.time()
+        print("Total time for the script spent:", time2 - time1, "seconds")
