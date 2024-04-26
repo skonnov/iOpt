@@ -48,6 +48,8 @@ class MCOMethodManyLambdasHyperplane(MCOMethodManyLambdas):
         fit_data = np.array([[func_value.value for func_value in dot.function_values] for (dot, _) in dots])
         fit_data_class = np.array([dot_class for (_, dot_class) in dots])
 
+        self.model.__init__()
+
         self.model.fit(fit_data, fit_data_class)
 
     def calculate_global_r(self, curr_point: SearchDataItem, left_point: SearchDataItem) -> None:
