@@ -11,6 +11,10 @@ class Model(ABC):
         pass
 
     @abstractmethod
+    def calculate_dot_characteristic(self, *point):
+        pass
+
+    @abstractmethod
     def calculate_r_ps(self, curr_point: SearchDataItem, left_point: SearchDataItem):
         pass
 

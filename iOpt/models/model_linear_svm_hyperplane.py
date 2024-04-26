@@ -21,16 +21,19 @@ class ModelLinearSVChyperplane(Model):
         self.d_max = max(d)
         self.is_fit = True
 
+    def calculate_dot_characteristic(self, *point):
+        d = self.svc.decision_function([point])
+        return d
+
     def calculate_r_ps(self, curr_point: SearchDataItem, left_point: SearchDataItem):
         if not self.is_fit:
             return 0.
-        d1 = self.svc.decision_function([[pt.value for pt in left_point.function_values]])
-        d2 = self.svc.decision_function([[pt.value for pt in curr_point.function_values]])
+        d1 = self.calculate_dot_characteristic(*[pt.value for pt in left_point.function_values])
         if d1 < 0:
             d1 = -d1 / self.d_min
         else:
             d1 = d1 / self.d_max
-
+        d2 = self.calculate_dot_characteristic(*[pt.value for pt in curr_point.function_values])
         if d2 < 0:
             d2 = -d2 / self.d_min
         else:
