@@ -28,7 +28,7 @@ def calculate_grishagin_mco_rep(func_id_1: int, func_id_2: int, alpha: float = 0
     iter_count /= repeat_count
     return hw_index, iter_count
 
-def calculate_grishagin_mco(func_id_1: int, func_id_2: int, alpha: float = 0., model: Model = None, iters_limit = None, eps = None, name=""):
+def calculate_grishagin_mco(func_id_1: int, func_id_2: int, alpha: float = 0., model: Model = None, iters_limit = None, eps = None, name="", axes=None, ax1 = 0, ax2 = 0):
     if iters_limit is None:
         iters_limit = 16000
     if eps is None:
@@ -49,11 +49,11 @@ def calculate_grishagin_mco(func_id_1: int, func_id_2: int, alpha: float = 0., m
     hw = pg.hypervolume(val)
     hw_index = hw.compute([1., 1.])
     
-    draw_heatmap(solver, model, name="")
-    draw(solver, model)
+    draw_heatmap(solver, model, name=name, axes=axes, ax1=ax1, ax2=ax2)
+    # draw(solver, model)
     return (hw_index, solver.method.iterations_count)
 
-def draw_heatmap(solver: Solver, model: Model, name=""):
+def draw_heatmap(solver: Solver, model: Model, name="", axes=None, ax1=0, ax2=0):
     minn = None
     maxx = None
     for dot in solver.search_data:
@@ -81,18 +81,27 @@ def draw_heatmap(solver: Solver, model: Model, name=""):
     # C = C[:-1, :-1]
     vect_calc = np.vectorize(model.calculate_dot_characteristic)
     z = vect_calc(X, Y)
+    if ax1 != 0:
+        z = np.log(z)
+    colormap = "viridis"
 
-    c = plt.pcolormesh(x1, x2, z)
-    plt.colorbar(c)
+    # if ax1 == 0:
+    #     colormap = "viridis_r"
+    c = axes[ax1, ax2].pcolormesh(x1, x2, z, cmap=colormap)
+
+
+    # c = plt.pcolormesh(x1, x2, z)
+    # plt.colorbar(c)
+    plt.colorbar(c, ax=axes[ax1, ax2])
 
     dots = [[func_value.value for func_value in trial.function_values] for trial in solver.search_data.solution.best_trials]
     dots.sort()
-    plt.scatter([dot[0] for dot in dots], [dot[1] for dot in dots], color="red")
+    axes[ax1, ax2].scatter([dot[0] for dot in dots], [dot[1] for dot in dots], color="red")
+    # plt.scatter([dot[0] for dot in dots], [dot[1] for dot in dots], color="red")
 
-    plt.title(name)
-
-    plt.show()
-    # x1 = np.linspace(solver.pa)
+    axes[ax1, ax2].set_title(name)
+    # plt.title(name)
+    # plt.show()
 
 def draw(solver: Solver, model: Model = None):
     ax = plt.gca()
@@ -150,7 +159,10 @@ if __name__ == "__main__":
             print("f", func_1, func_2, file=f)
             # approach with distance to the hypeplane
             # for target_eps in (0.1, 0.05, 0.01):
-            for target_eps in [0.1]:
+            for target_eps in [0.01]:
+
+                fig, axes = plt.subplots(4, 2)
+                fig.suptitle("funcs " + str(func_1) + " " + str(func_2) + ", e=" + str(target_eps))
                 print("e", target_eps, file=f)
 
                 # print("d_mgsa", file=f)
@@ -158,34 +170,43 @@ if __name__ == "__main__":
                 # print("hw", hw_index, "n", iter_count, file=f)
                 # f.flush()
 
-                print("d_dist", file=f)
+                print("d_dist")
                 model = ModelLinearSVChyperplane()
-                hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=0.01, model=model, eps=target_eps, name="d_dist")
+                hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2,
+                                                               alpha=0.01, model=model, eps=target_eps,
+                                                               name="d_dist", axes=axes, ax1=0, ax2=0)
+                axes[0][1].axis('off')
                 print("hw", hw_index, "n", iter_count, file=f)
                 f.flush()
 
-                print("d_prob", file=f)
-                for alpha in (0.03, 0.09):
-                    print("a", alpha, file=f)
+                print("d_prob")
+                for i, alpha in enumerate((0.03, 0.09)):
+                    print("a", alpha)
                     model = ModelLinearSVCproba()
-                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps, name="d_prob, alpha = " + str(alpha))
+                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2,
+                                                                   alpha=alpha, model=model, eps=target_eps,
+                                                                   name="d_prob, alpha = " + str(alpha), axes=axes, ax1=1, ax2=i)
                     print("hw", hw_index, "n", iter_count, file=f)
                 f.flush()
-
-                print("d_prob_poly", file=f)
-                for alpha in (0.03, 0.09):
-                    print("a", alpha, file=f)
+                print("d_prob_poly")
+                for i, alpha in enumerate((0.03, 0.09)):
+                    print("a", alpha)
                     model = ModelPolySVCproba()
-                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps, name="d_prob_poly, alpha = " + str(alpha))
+                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2,
+                                                                   alpha=alpha, model=model, eps=target_eps,
+                                                                   name="d_prob_poly, alpha = " + str(alpha), axes=axes, ax1=2, ax2=i)
                     print("hw", hw_index, "n", iter_count, file=f)
                 f.flush()
 
-                print("d_prob_rbf", file=f)
-                for alpha in (0.03, 0.09):
-                    print("a", alpha, file=f)
+                print("d_prob_rbf")
+                for i, alpha in enumerate((0.03, 0.09)):
+                    print("a", alpha)
                     model = ModelRbfSVCproba()
-                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps, name="d_prob_rbf, alpha = " + str(alpha))
+                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2,
+                                                                   alpha=alpha, model=model, eps=target_eps,
+                                                                   name="d_prob_rbf, alpha = " + str(alpha), axes=axes, ax1=3, ax2=i)
                     print("hw", hw_index, "n", iter_count, file=f)
                 f.flush()
+                plt.show()
         time2 = time.time()
         print("Total time for the script spent:", time2 - time1, "seconds")
