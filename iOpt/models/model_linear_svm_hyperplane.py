@@ -1,6 +1,7 @@
 from iOpt.models.model import Model
 from sklearn import svm
 from iOpt.method.search_data import SearchDataItem
+from sklearn.preprocessing import MinMaxScaler
 
 class ModelLinearSVChyperplane(Model):
 
@@ -11,9 +12,11 @@ class ModelLinearSVChyperplane(Model):
         self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear')  # TODO: use self.parameters.pareto_weight?
         self.d_min = 0
         self.d_max = 0
+        self.scaler = MinMaxScaler()
 
     def fit(self, X: list, y: list):
-        self.svc.fit(X, y)
+        scaled_X = self.scaler.fit_transform(X)
+        self.svc.fit(scaled_X, y)
         
         d = self.svc.decision_function(X)  # need to divide the function values
                                                        # by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
@@ -22,7 +25,7 @@ class ModelLinearSVChyperplane(Model):
         self.is_fit = True
 
     def calculate_dot_characteristic(self, *point):
-        d = self.svc.decision_function([point])
+        d = self.svc.decision_function(self.scaler.transform([point]))
         return d
 
     def calculate_r_ps(self, curr_point: SearchDataItem, left_point: SearchDataItem):
