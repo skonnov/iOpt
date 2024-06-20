@@ -9,7 +9,7 @@ class ModelLinearSVChyperplane(Model):
         super().__init__()
         self.is_fit = False
         # self.svc = svm.LinearSVC(class_weight={1: 98}, dual="auto")
-        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear')  # TODO: use self.parameters.pareto_weight?
+        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
         self.d_min = 0
         self.d_max = 0
         self.scaler = MinMaxScaler()
@@ -18,7 +18,7 @@ class ModelLinearSVChyperplane(Model):
         scaled_X = self.scaler.fit_transform(X)
         self.svc.fit(scaled_X, y)
         
-        d = self.svc.decision_function(X)  # need to divide the function values
+        d = self.svc.decision_function(scaled_X)  # need to divide the function values
                                                        # by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
         self.d_min = min(d)
         self.d_max = max(d)

@@ -8,32 +8,19 @@ class ModelLinearSVCproba(Model):
     def __init__(self):
         super().__init__()
         self.is_fit = False
-        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear')  # TODO: use self.parameters.pareto_weight?
+        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
         self.scaler = MinMaxScaler()
-        self.p_min = 0.
-        self.p_max = 0.
 
     def fit(self, X: list, y: list):
-        pareto_size = 0
-        for i in y:
-            pareto_size += i
-
-        self.svc.set_params(class_weight={0: pareto_size, 1: len(y) - pareto_size})
-
         scaled_X = self.scaler.fit_transform(X)
         self.svc.fit(scaled_X, y)
-
-        p = self.svc.predict_proba(scaled_X)
-        self.p_min = np.log(min([p_dot[1] for p_dot in p]))
-        self.p_max = np.log(max([p_dot[1] for p_dot in p]))
 
         self.is_fit = True
 
     def calculate_dot_characteristic(self, *point):
         p = self.svc.predict_proba(self.scaler.transform([point]))
         assert abs(p[0][0] + p[0][1] - 1) < 1e-5
-        # return np.log(p[0][1])
-        return (np.log(p[0][1]) - self.p_min) / (self.p_max - self.p_min)
+        return p[0][1]
 
 
     def calculate_r_ps(self, curr_point: SearchDataItem, left_point: SearchDataItem):
@@ -47,3 +34,15 @@ class ModelLinearSVCproba(Model):
 
     def get_model(self):
         return self.svc
+
+class ModelPolySVCproba(ModelLinearSVCproba):
+    def __init__(self):
+        self.is_fit = False
+        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='poly', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
+        self.scaler = MinMaxScaler()
+
+class ModelRbfSVCproba(ModelLinearSVCproba):
+    def __init__(self):
+        self.is_fit = False
+        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='rbf', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
+        self.scaler = MinMaxScaler()
