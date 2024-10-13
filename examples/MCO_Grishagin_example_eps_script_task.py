@@ -3,10 +3,11 @@ from iOpt.solver import Solver
 from iOpt.solver_parametrs import SolverParameters
 from iOpt.output_system.listeners.console_outputers import ConsoleOutputListener
 from iOpt.models.model import Model
-from iOpt.models.model_linear_svm_proba import ModelLinearSVCproba
-from iOpt.models.model_poly_svm_proba import ModelPolySVCproba
-from iOpt.models.model_rbf_svm_proba import ModelRbfSVCproba
+from iOpt.models.model_svm_proba import ModelLinearSVCproba, ModelPolySVCproba, ModelRbfSVCproba
+from iOpt.models.model_svm_proba_adj_weights import ModelLinearSVCprobaAdjWeights, ModelPolySVCprobaAdjWeights, ModelRbfSVCprobaAdjWeights
+from iOpt.models.model_svm_proba_log_normalized import ModelLinearSVCprobaLogNorm, ModelPolySVCprobaLogNorm, ModelRbfSVCprobaLogNorm
 from iOpt.models.model_linear_svm_hyperplane import ModelLinearSVChyperplane
+from iOpt.models.model_xgboost import ModelXGBoostProba
 # from iOpt.models.model_random_forest import ModelRandomForestProba
 from sklearn.inspection import DecisionBoundaryDisplay
 import matplotlib.pyplot as plt
@@ -16,29 +17,18 @@ import time
 import os
 
 from datetime import datetime
-# start_time = time.time()
-def calculate_grishagin_mco_rep(func_id_1: int, func_id_2: int, alpha: float = 0., model: Model = None, iters_limit = None, eps = None, repeat_count = 1):
-    hw_index = 0.
-    iter_count = 0.
-    for _ in range(repeat_count):
-        cur_hw_index, cur_iter_count = calculate_grishagin_mco(func_id_1, func_id_2, alpha, model, iters_limit, eps)
-        hw_index += cur_hw_index
-        iter_count += cur_iter_count
-    hw_index /= repeat_count
-    iter_count /= repeat_count
-    return hw_index, iter_count
 
-def calculate_grishagin_mco(func_id_1: int, func_id_2: int, alpha: float = 0., model: Model = None, iters_limit = None, eps = None):
+def calculate_grishagin_mco(func_ids, alpha: float = 0., model: Model = None, iters_limit = None, eps = None):
     if iters_limit is None:
         iters_limit = 16000
     if eps is None:
         eps = 0.01
-    problem = Grishagin_mco(2, [func_id_1, func_id_2])
+    problem = Grishagin_mco(len(func_ids), func_ids)
 
     params = SolverParameters(r=2.5, eps=eps, iters_limit=iters_limit,
                               number_of_lambdas=50, start_lambdas=[[0, 1]],
                               is_scaling=False, number_of_parallel_points=2,
-                              async_scheme=True, alpha=alpha)
+                              async_scheme=False, alpha=alpha)
 
     solver = Solver(problem=problem, parameters=params, model=model)
 
@@ -51,7 +41,6 @@ def calculate_grishagin_mco(func_id_1: int, func_id_2: int, alpha: float = 0., m
     hw_index = hw.compute([1., 1.])
     # draw(solver, model)
     return (hw_index, solver.method.iterations_count)
-
 
 def draw(solver: Solver, model: Model = None):
     ax = plt.gca()
@@ -83,6 +72,28 @@ def draw(solver: Solver, model: Model = None):
     plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
     plt.show()
 
+def solve(filename, target_eps_arr, alpha_arr, models, func_ids_arr):
+    with open(filename, "w") as f:
+        print("f = functions ids, a = alpha, hw = hw_index, n = number of iterations, e = target accuracy, m = model name", file=f)
+        for func_ids in func_ids_arr:
+            print("f", func_ids, file=f)
+            print("f", func_ids)
+            for target_eps in target_eps_arr:
+                print("e", target_eps, file=f)
+                print("e", target_eps)
+                for model in models:
+                    if model is None:
+                        print("m", "mgsa", file=f)
+                        print("m", "mgsa")
+                    else:
+                        print("m", model.name(), file=f)
+                        print("m", model.name())
+                    for alpha in alpha_arr:
+                        print("a", alpha, file=f)
+                        print("a", alpha)
+                        hw_index, iter_count = calculate_grishagin_mco(func_ids, alpha=alpha, model=model, eps=target_eps)
+                        print("hw", hw_index, "n", iter_count, file=f)
+
 if __name__ == "__main__":
     # generate 100 pairs of grishagin problem
     func_ids = []
@@ -102,52 +113,12 @@ if __name__ == "__main__":
 
 
     func_ids_local = np.array_split(np.array(func_ids), task_count)[task_id]
-    
 
-    with open(filename, "w") as f:
-        print("f = functions ids, a = alpha, hw = hw_index, n = number of iterations, e = target accuracy, ", end='', file=f)
-        print("d_mgsa = approach without machine learning methods, ", end='', file=f)
-        print("d_appr = approach with distance to the hyperplane, d_prob = approach with probabilities", file=f)
-        time1 = time.time()
-        for func_1, func_2 in func_ids_local:
-            print("f", func_1, func_2, file=f)
-            # approach with distance to the hypeplane
-            for target_eps in (0.1, 0.075, 0.05, 0.025, 0.01):
-                print("e", target_eps, file=f)
-
-                # print("d_mgsa", file=f)
-                # hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, eps=target_eps)
-                # print("hw", hw_index, "n", iter_count, file=f)
-                # f.flush()
-
-                # print("d_appr", file=f)
-                # model = ModelLinearSVChyperplane()
-                # hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=0.01, model=model, eps=target_eps)
-                # print("hw", hw_index, "n", iter_count, file=f)
-                # f.flush()
-
-                print("d_prob", file=f)
-                for alpha in (0.01, 0.02):
-                    print("a", alpha, file=f)
-                    model = ModelLinearSVCproba()
-                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps)
-                    print("hw", hw_index, "n", iter_count, file=f)
-                f.flush()
-
-                print("d_prob_poly", file=f)
-                for alpha in (0.01, 0.02):
-                    print("a", alpha, file=f)
-                    model = ModelPolySVCproba()
-                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps)
-                    print("hw", hw_index, "n", iter_count, file=f)
-                f.flush()
-
-                print("d_prob_rbf", file=f)
-                for alpha in (0.01, 0.02):
-                    print("a", alpha, file=f)
-                    model = ModelRbfSVCproba()
-                    hw_index, iter_count = calculate_grishagin_mco(func_id_1=func_1, func_id_2=func_2, alpha=alpha, model=model, eps=target_eps)
-                    print("hw", hw_index, "n", iter_count, file=f)
-                f.flush()
-        time2 = time.time()
-        print("Total time for the script spent:", time2 - time1, "seconds")
+    solve("mso_grishagin_mgsa_" + dt_string + "_task_" +task_id + ".txt",         (0.1, 0.05, 0.01), [0.],   [None], func_ids_local)
+    solve("mso_grishagin_mgsa_dist_" + dt_string + "_task_" +task_id + ".txt",    (0.1, 0.05, 0.01), [0.01], [ModelLinearSVChyperplane()], func_ids_local)
+    solve("mso_grishagin_not_weighted_" + dt_string + "_task_" +task_id + ".txt", [0.01], (0.03, 0.09), (ModelLinearSVCproba(), ModelPolySVCproba(), ModelRbfSVCproba()), func_ids_local)
+    solve("mso_grishagin_weighted_" + dt_string + "_task_" +task_id + ".txt", (0.1, 0.05, 0.01), (0.03, 0.09),
+                                (ModelLinearSVCprobaAdjWeights(), ModelPolySVCprobaAdjWeights(), ModelRbfSVCprobaAdjWeights()), func_ids_local)
+    solve("mso_grishagin_log_norm_" + dt_string + "_task_" +task_id + ".txt", [0.01], (0.03, 0.09),
+                                (ModelLinearSVCprobaLogNorm(), ModelPolySVCprobaLogNorm(), ModelRbfSVCprobaLogNorm()), func_ids_local)
+    solve("mso_grishagin_mgsa_xgboost_" + dt_string + "_task_" +task_id + ".txt",    (0.1, 0.05, 0.01), [0.01, 0.02, 0.03, 0.04, 0.08], [ModelXGBoostProba()], func_ids_local)
