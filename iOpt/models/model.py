@@ -21,3 +21,7 @@ class Model(ABC):
     @abstractmethod
     def get_model(self):
         pass
+
+    @abstractmethod
+    def name(self):
+        pass

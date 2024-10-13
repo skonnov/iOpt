@@ -17,7 +17,7 @@ class ModelLinearSVChyperplane(Model):
     def fit(self, X: list, y: list):
         scaled_X = self.scaler.fit_transform(X)
         self.svc.fit(scaled_X, y)
-        
+
         d = self.svc.decision_function(scaled_X)  # need to divide the function values
                                                        # by the norm of the weight vector (coef_) (in case of decision_function_shape=’ovo’)?
         self.d_min = min(d)
@@ -47,3 +47,6 @@ class ModelLinearSVChyperplane(Model):
 
     def get_model(self):
         return self.svc
+
+    def name(self):
+        return "linear_svc"
