@@ -14,11 +14,13 @@ class Net(nn.Module):
         self.lin1 = nn.Linear(N, 512)
         self.lin2 = nn.Linear(512, 512)
         self.lin3 = nn.Linear(512, 2)
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
-        x = nn.ReLU(self.lin1(x))
-        x = nn.ReLU(self.lin2(x))
-        x = nn.ReLU(self.lin3(x))
+        x = nn.functional.relu(self.lin1(x))
+        x = nn.functional.relu(self.lin2(x))
+        x = nn.functional.relu(self.lin3(x))
+        x = self.softmax(x)
         return x
 
 
@@ -34,33 +36,40 @@ class ModelNNProba(Model):  # scaled, adjusted weights
             if torch.backends.mps.is_available()
             else "cpu")
 
-        print(f"Using {self.device} device")
+        # print(f"Using {self.device} device")
 
         # self.flatten = nn.Flatten()
 
         self.net = Net(2)
-        self.criterion = nn.CrossEntropyLoss(Tensor(0.8, 0.))
+        self.criterion = nn.CrossEntropyLoss(torch.Tensor([0.8, 0.2]).to(torch.float32))  # change weigths?
         self.optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
+
+        self.scaler = MinMaxScaler()
 
     def fit(self, X: list, y: list):
         scaled_X = self.scaler.fit_transform(X)
 
         self.optimizer.zero_grad()
 
-        for i in range(len(scaled_X)):
-            outputs = self.net(scaled_X[i])
-            loss = self.criterion(outputs, y[i])
-            loss.backward()
-            self.optimizer.step()
+        for epoch in range(2):  # loop over the dataset multiple times
+            running_loss = 0.0
+            for i in range(len(scaled_X)):
+                outputs = self.net(torch.from_numpy(scaled_X[i]).to(torch.float32))
+                loss = self.criterion(outputs, torch.Tensor([y[i], 1-y[i]]).to(torch.float32))
+                loss.backward()
+                self.optimizer.step()
+
+                # print statistics
+                # running_loss += loss.item()
+                # if i % 1 == 0:    # print every 2000 mini-batches
+                #     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+                #     running_loss = 0.0
 
         self.is_fit = True
 
     def calculate_dot_characteristic(self, *point):
-        data = self.flatten([point])
-        data = self.linear_relu_stack(data)
-
-        p = self.net(point)
-        print(p[0])
+        p = self.net(torch.Tensor(point).to(torch.float32))
+        # print("-->", p[0], p[1], "<--")
         return p[0]
 
     def calculate_r_ps(self, curr_point: SearchDataItem, left_point: SearchDataItem):
@@ -79,4 +88,4 @@ class ModelNNProba(Model):  # scaled, adjusted weights
         return self.model
 
     def name(self):
-        return "xgboost"
+        return "NN"
