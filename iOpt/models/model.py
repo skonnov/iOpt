@@ -7,6 +7,10 @@ class Model(ABC):
         pass
 
     @abstractmethod
+    def init_model(self):
+        pass
+
+    @abstractmethod
     def fit(self, X: list, y: list):
         pass
 

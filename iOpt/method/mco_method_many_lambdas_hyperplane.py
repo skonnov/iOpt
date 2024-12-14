@@ -45,12 +45,13 @@ class MCOMethodManyLambdasHyperplane(MCOMethodManyLambdas):
                     break
             if not is_best_dot:
                 dots.append((dot, 0))
+
         fit_data = np.array([[func_value.value for func_value in dot.function_values] for (dot, _) in dots])
         fit_data_class = np.array([dot_class for (_, dot_class) in dots])
 
-        self.model.__init__()
+        self.model.init_model()
 
-        self.model.fit(fit_data, fit_data_class)
+        self.model.fit(fit_data.tolist(), fit_data_class.tolist())
 
     def calculate_global_r(self, curr_point: SearchDataItem, left_point: SearchDataItem) -> None:
         super().calculate_global_r(curr_point, left_point)

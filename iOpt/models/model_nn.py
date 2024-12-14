@@ -29,37 +29,41 @@ class ModelNNProba(Model):  # scaled, adjusted weights
     iter = 0
     cnt0 = 0
     cnt1 = 0
-    def __init__(self):
+    def __init__(self, weights, input_cnt=2):
         super().__init__()
-        self.is_fit = False
         # self.model = xgboost.XGBClassifier(n_estimators=5, max_depth=2, objective='binary:logistic', device="cuda")
-        self.device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu")
+        self.device = "cpu"
+        # self.device = (
+        #     "cuda"
+        #     if torch.cuda.is_available()
+        #     else "mps"
+        #     if torch.backends.mps.is_available()
+        #     else "cpu")
 
         # print(f"Using {self.device} device")
 
-        # self.flatten = nn.Flatten()
+        self.weights = weights
+        self.input_cnt = input_cnt
 
-        self.net = Net(2)
-        self.criterion = nn.CrossEntropyLoss()  # change weigths?
+        self.init_model()
+
+    def init_model(self):
+        self.is_fit = False
+        self.net = Net(self.input_cnt)
+        self.criterion = nn.CrossEntropyLoss(torch.FloatTensor(self.weights))
         # self.criterion = nn.CrossEntropyLoss(torch.Tensor([0.2, 0.8]).to(torch.float32))  # change weigths?
         # self.optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
         self.optimizer = optim.Adam(self.net.parameters(), lr=0.001)
-
         self.scaler = MinMaxScaler()
 
     def fit(self, X: list, y: list):
-        print("0s:", ModelNNProba.cnt0, ", 1s: ", ModelNNProba.cnt1)
+        # print("0s:", ModelNNProba.cnt0, ", 1s: ", ModelNNProba.cnt1)
         scaled_X = self.scaler.fit_transform(X)
 
         scaled_X = torch.FloatTensor(scaled_X)
         y = torch.LongTensor(y)
         dataset = TensorDataset(scaled_X, y)
-        data_loader = DataLoader(dataset, batch_size=2, shuffle=True)
+        data_loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
         for epoch in range(20):  # loop over the dataset multiple times
             running_loss = 0.0
@@ -75,8 +79,9 @@ class ModelNNProba(Model):  # scaled, adjusted weights
                 # if i % 1 == 0:    # print every 2000 mini-batches
                 #     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
                 #     running_loss = 0.0
+            # print(f"Epoch {epoch + 1}/{20}, Loss: {running_loss / len(data_loader):.4f}")
         ModelNNProba.iter += 1
-        print("NN fit #", ModelNNProba.iter)
+        # print("NN fit #", ModelNNProba.iter)
         self.is_fit = True
         ModelNNProba.cnt0 = 0
         ModelNNProba.cnt1 = 0

@@ -7,11 +7,14 @@ from sklearn.preprocessing import MinMaxScaler
 class ModelLinearSVCprobaLogNorm(Model):
     def __init__(self):
         super().__init__()
-        self.is_fit = False
-        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
         self.scaler = MinMaxScaler()
         self.p_min = 0.
         self.p_max = 0.
+        self.init_model()
+
+    def init_model(self):
+        self.is_fit = False
+        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
 
     def fit(self, X: list, y: list):
         pareto_size = 0
@@ -55,18 +58,24 @@ class ModelLinearSVCprobaLogNorm(Model):
 
 class ModelPolySVCprobaLogNorm(ModelLinearSVCprobaLogNorm):
     def __init__(self):
+        self.scaler = MinMaxScaler()
+        self.init_model()
+
+    def init_model(self):
         self.is_fit = False
         self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='poly', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
-        self.scaler = MinMaxScaler()
 
     def name(self):
         return "poly_svm_proba_log_norm"
 
 class ModelRbfSVCprobaLogNorm(ModelLinearSVCprobaLogNorm):
     def __init__(self):
+        self.scaler = MinMaxScaler()
+        self.init_model()
+
+    def init_model(self):
         self.is_fit = False
         self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='rbf', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
-        self.scaler = MinMaxScaler()
 
     def name(self):
         return "rbf_svm_proba_log_norm"

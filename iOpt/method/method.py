@@ -40,7 +40,7 @@ class Method:
         :param search_data: структура данных для хранения накопленной поисковой информации.
         :param calculator: class containing trial methods (parallel and/or inductive circuit)
         """
-        
+
         self.stop: bool = False
         self.recalcR: bool = True
         self.recalcM: bool = True
@@ -53,9 +53,9 @@ class Method:
         self.search_data = search_data
 
         self.M = [1.0 for _ in range(1 + task.problem.number_of_constraints)]
-        self.Z = [np.infty for _ in range(1 + task.problem.number_of_constraints)]
+        self.Z = [np.inf for _ in range(1 + task.problem.number_of_constraints)]
         self.dimension = task.problem.number_of_float_variables
-        self.search_data.solution.solution_accuracy = np.infty
+        self.search_data.solution.solution_accuracy = np.inf
         self.numberOfAllFunctions = task.problem.number_of_objectives + task.problem.number_of_constraints
 
         if calculator is None:
@@ -309,7 +309,7 @@ class Method:
             print("calculate_global_r: Curr point is NONE")
             raise Exception("calculate_global_r: Curr point is NONE")
         if left_point is None:
-            curr_point.globalR = -np.infty
+            curr_point.globalR = -np.inf
             return None
         zl = left_point.get_z()
         zr = curr_point.get_z()

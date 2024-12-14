@@ -7,12 +7,14 @@ class ModelLinearSVChyperplane(Model):
 
     def __init__(self):
         super().__init__()
-        self.is_fit = False
-        # self.svc = svm.LinearSVC(class_weight={1: 98}, dual="auto")
-        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
         self.d_min = 0
         self.d_max = 0
         self.scaler = MinMaxScaler()
+        self.init_model()
+
+    def init_model(self):
+        self.is_fit = False
+        self.svc = svm.SVC(class_weight={1: 98}, probability=True, kernel='linear', max_iter=10000)  # TODO: use self.parameters.pareto_weight?
 
     def fit(self, X: list, y: list):
         scaled_X = self.scaler.fit_transform(X)

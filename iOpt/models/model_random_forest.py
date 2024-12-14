@@ -5,9 +5,12 @@ from sklearn.preprocessing import MinMaxScaler
 
 class ModelRandomForestProba(ModelLinearSVCproba):
     def __init__(self):
+        self.scaler = MinMaxScaler()
+        self.init_model()
+
+    def init_model(self):
         self.is_fit = False
         self.svc = RandomForestClassifier(max_depth=2, random_state=0)
-        self.scaler = MinMaxScaler()
 
     def name(self):
         return "random_forest"

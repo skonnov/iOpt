@@ -10,15 +10,16 @@ class ModelMLPProba(Model):  # scaled, adjusted weights
     iter = 0
     def __init__(self):
         super().__init__()
-        self.is_fit = False
-        # self.model = xgboost.XGBClassifier(n_estimators=5, max_depth=2, objective='binary:logistic', device="cuda")
-        num_elems = 200
-        alpha = 0.1
-        self.model = MLPClassifier(alpha=alpha, hidden_layer_sizes=(num_elems,num_elems),
-                              solver='lbfgs', activation='logistic', max_iter=1000, random_state=42)
+        self.num_elems = 200
+        self.alpha = 0.1
 
         self.scaler = MinMaxScaler()
+        self.init_model()
 
+    def init_model(self):
+        self.is_fit = False
+        self.model = MLPClassifier(alpha=self.alpha, hidden_layer_sizes=(self.num_elems, self.num_elems),
+                              solver='lbfgs', activation='logistic', max_iter=1000, random_state=42)
 
     def fit(self, X: list, y: list):
         scaled_X = self.scaler.fit_transform(X)

@@ -2,18 +2,23 @@ from iOpt.models.model import Model
 import xgboost
 from iOpt.method.search_data import SearchDataItem
 from sklearn.preprocessing import MinMaxScaler
+# import cupy as cp
 
 class ModelXGBoostProba(Model):  # scaled, adjusted weights
     def __init__(self):
         super().__init__()
-        self.is_fit = False
-        self.model = xgboost.XGBClassifier(n_estimators=5, max_depth=2, learning_rate=1, objective='binary:logistic')
         self.scaler = MinMaxScaler()
+        self.init_model()
+
+    def init_model(self):
+        self.is_fit = False
+        # self.model = xgboost.XGBClassifier(n_estimators=5, max_depth=2, objective='binary:logistic', device="cuda")
+        self.model = xgboost.XGBClassifier(n_estimators=5, max_depth=2, objective='binary:logistic')
 
     def fit(self, X: list, y: list):
-        self.model.fit(X, y)
-
         scaled_X = self.scaler.fit_transform(X)
+        # scaled_X_cp = cp.array(scaled_X)
+        # self.model.fit(scaled_X_cp, y)
         self.model.fit(scaled_X, y)
         self.is_fit = True
 
