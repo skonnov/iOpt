@@ -1,0 +1,190 @@
+from problems.GKLS_mco import GKLS_mco
+from iOpt.solver import Solver
+from iOpt.solver_parametrs import SolverParameters
+from iOpt.output_system.listeners.console_outputers import ConsoleOutputListener
+from iOpt.models.model import Model
+from iOpt.models.model_svm_proba import ModelLinearSVCproba, ModelPolySVCproba, ModelRbfSVCproba
+from iOpt.models.model_svm_proba_adj_weights import ModelLinearSVCprobaAdjWeights, ModelPolySVCprobaAdjWeights, ModelRbfSVCprobaAdjWeights
+from iOpt.models.model_svm_proba_log_normalized import ModelLinearSVCprobaLogNorm, ModelPolySVCprobaLogNorm, ModelRbfSVCprobaLogNorm
+from iOpt.models.model_linear_svm_hyperplane import ModelLinearSVChyperplane
+from iOpt.models.model_xgboost import ModelXGBoostProba
+# from iOpt.models.model_random_forest import ModelRandomForestProba
+from iOpt.models.model_nn import ModelNNProba
+from iOpt.models.model_nn_1_layer import ModelNNProba1Layer
+from sklearn.inspection import DecisionBoundaryDisplay
+import matplotlib.pyplot as plt
+import pygmo as pg
+import numpy as np
+import time
+import os
+import torch
+
+from datetime import datetime
+
+maxx = -1.
+
+def calculate_gkls_mco(func_ids, alpha: float = 0., model: Model = None, iters_limit = None, eps = None, async_scheme=False, parallel_dots_count=None):
+    global maxx
+    if iters_limit is None:
+        iters_limit = 35000
+    if eps is None:
+        eps = 0.01
+    problem = GKLS_mco(len(func_ids), func_ids, dimension=4)
+
+    params = SolverParameters(r=5, eps=eps, iters_limit=iters_limit,
+                              number_of_lambdas=50, start_lambdas=[[i % 2 for i in range(len(func_ids))]],
+                              is_scaling=False, number_of_parallel_points=parallel_dots_count,
+                              async_scheme=async_scheme, alpha=alpha)
+
+    solver = Solver(problem=problem, parameters=params, model=model)
+
+    # cfol = ConsoleOutputListener(mode='full')
+    # solver.add_listener(cfol)
+
+    sol = solver.solve()
+
+    hw_threshold = 10.
+    # output of the Pareto set (coordinates - function values)
+    val = []
+    skipped_count = 0
+    # print("begin")
+    # with open("dots.txt", "a") as f:
+    #     print("functions: ", func_ids, file=f)
+    #     print("eps: ", eps, file=f)
+    #     for trial in sol.best_trials:
+    #         print([trial.function_values[i].value for i in range(len(func_ids))], file=f)
+    # print("end")
+    for trial in sol.best_trials:
+        add_flag = True
+        for idx in range(len(func_ids)):
+            maxx = max(maxx, trial.function_values[idx].value)
+            if trial.function_values[idx].value > hw_threshold:
+                if add_flag:
+                    skipped_count += 1
+                add_flag = False
+        if add_flag:
+            val.append([trial.function_values[i].value for i in range(len(func_ids))])
+    print("skipped_count:", skipped_count, "total count:", len(sol.best_trials), "current_maxx:", maxx)
+    # val = [[trial.function_values[i].value for i in range(len(func_ids))] for trial in sol.best_trials]
+    hw = pg.hypervolume(val)
+    hw_index = hw.compute([hw_threshold for _ in range(len(func_ids))])
+    # draw(solver, model)
+    return (hw_index, solver.method.iterations_count)
+
+def draw(solver: Solver, model: Model = None):
+    ax = plt.gca()
+    dots = [(trial, 1) for trial in solver.search_data.solution.best_trials]
+    for dot in solver.search_data:
+        is_best_dot = False
+        for best_dot in solver.search_data.solution.best_trials:
+            if np.linalg.norm(dot.point.float_variables - best_dot.point.float_variables) < 1e-5:
+                is_best_dot = True
+                break
+        if not is_best_dot:
+            dots.append((dot, 0))
+    fit_data = np.array([[func_value.value for func_value in dot.function_values] for (dot, _) in dots])
+    fit_data_class = np.array([dot_class for (_, dot_class) in dots])
+
+    if model:
+        DecisionBoundaryDisplay.from_estimator(
+            model.get_model(),
+            fit_data,
+            plot_method="contour",
+            colors="k",
+            levels=[0],
+            alpha=0.5,
+            linestyles=["-"],
+            ax=ax,
+        )
+
+    # TMP: draw plt with all dots and linear regression function
+    plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
+    plt.show()
+
+def solve(filename, target_eps_arr, alpha_arr, models, func_ids_arr, async_scheme, parallel_dots_count):
+    with open(filename, "w") as f:
+        print("f = functions ids, a = alpha, hw = hw_index, n = number of iterations, e = target accuracy, m = model name, p_dots = parallel_dots, async = is async", file=f)
+        for func_ids in func_ids_arr:
+            print("f", func_ids, file=f)
+            print("f", func_ids)
+            for target_eps in target_eps_arr:
+                print("e", target_eps, file=f)
+                print("e", target_eps)
+                for model in models:
+                    if model is None:
+                        print("m", "mgsa", file=f)
+                        print("m", "mgsa")
+                    else:
+                        if model.name().startswith("NN"):
+                            print("m", model.name() + "_" + str(model.weights[0]) + "_" + str(model.weights[1]), file=f)
+                            print("m", model.name() + "_" + str(model.weights[0]) + "_" + str(model.weights[1]))
+                            # if is_cuda:
+                            #     device = torch.device("cuda")
+                            #     print(f"Using device: {device}")
+                            # else:
+                            #     device = torch.device("cpu")
+                            #     print(f"Using device: {device}")
+                        else:
+                            print("m", model.name(), file=f)
+                            print("m", model.name())
+                    print("p_dots", parallel_dots_count, file=f)
+                    print("p_dots", parallel_dots_count)
+                    print("async", async_scheme, file=f)
+                    print("async", async_scheme)
+
+                    for alpha in alpha_arr:
+                        print("a", alpha, file=f)
+                        print("a", alpha)
+                        time1 = time.time()
+                        hw_index, iter_count = calculate_gkls_mco(func_ids, alpha=alpha, model=model, eps=target_eps, parallel_dots_count=parallel_dots_count,
+                                                                        async_scheme=async_scheme)
+                        time2 = time.time()
+                        print("hw", hw_index, "n", iter_count)
+                        print("hw", hw_index, "n", iter_count, file=f)
+                        print("t", time2 - time1)
+                        print("t", time2 - time1, file=f)
+
+if __name__ == "__main__":
+    # generate 100 pairs of grishagin problem
+    func_ids = []
+    for i in range(1, 11):
+        func_ids.append((i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 3))
+    # for i in range(1, 50):
+    #     func_ids.append((i * 2, i * 2 + 1))
+    # for i in range(50):
+    #     func_ids.append((i, 99 - i))
+
+    # func_ids.append((30, 45))
+
+    # task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
+    # task_count = int(os.environ['SLURM_ARRAY_TASK_COUNT'])
+    task_id = 0
+    task_count = 1
+
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d_%H-%M-%S")
+    filename = "mso_grishagin_" + dt_string + "_task_" + str(task_id)
+
+    func_ids_local = np.array_split(np.array(func_ids), task_count)[task_id]
+
+    time1 = time.time()
+    model_weights = [[0.1, 0.9], [0.2, 0.8], [0.3, 0.7]]
+    for (async_scheme, dots_count) in [(False, 1), (True, 2), (True, 2), (True, 4), (True, 8), (True, 16), (True, 20)]:
+        solve("mso_GKLS_mgsa_" + dt_string + "_task_" + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), [0.],   [None], func_ids_local, async_scheme, dots_count)
+        solve("mso_GKLS_mgsa_dist_" + dt_string + "_task_" + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), [0.01], [ModelLinearSVChyperplane()], func_ids_local, async_scheme, dots_count)
+        solve("mso_GKLS_log_norm_" + dt_string + "_task_" + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), (0.04, 0.05, 0.08), (ModelLinearSVCprobaLogNorm(), ModelPolySVCprobaLogNorm(), ModelRbfSVCprobaLogNorm()), func_ids_local, async_scheme, dots_count)
+        solve("mso_GKLS_NN_task_" + dt_string + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), [0.03, 0.05, 0.08], [ModelNNProba(model_weight, len(func_ids[0])) for model_weight in model_weights], func_ids_local, async_scheme, dots_count)
+        solve("mso_GKLS_NN_task_1_layer_" + dt_string + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), [0.03, 0.05, 0.08], [ModelNNProba1Layer(model_weight, len(func_ids[0])) for model_weight in model_weights], func_ids_local, async_scheme, dots_count)
+
+        # if torch.cuda.is_available():
+        #     solve("mso_grishagin_NN_task_" + dt_string + str(task_id) + ".txt", (0.1, 0.05, 0.01), [0.03, 0.05], [ModelNNProba(model_weight) for model_weight in model_weights], func_ids_local, True)
+        # else:
+        #     print("cuda is not available!")
+
+    time2 = time.time()
+    print("Total time for the script spent:", time2 - time1, "seconds")
