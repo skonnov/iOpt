@@ -9,16 +9,19 @@ from iOpt.models.model_svm_proba_log_normalized import ModelLinearSVCprobaLogNor
 from iOpt.models.model_linear_svm_hyperplane import ModelLinearSVChyperplane
 from iOpt.models.model_xgboost import ModelXGBoostProba
 # from iOpt.models.model_random_forest import ModelRandomForestProba
+from iOpt.models.model_nn import ModelNNProba
+from iOpt.models.model_nn_1_layer import ModelNNProba1Layer
 from sklearn.inspection import DecisionBoundaryDisplay
 import matplotlib.pyplot as plt
 import pygmo as pg
 import numpy as np
 import time
 import os
+import torch
 
 from datetime import datetime
 
-def calculate_grishagin_mco(func_ids, alpha: float = 0., model: Model = None, iters_limit = None, eps = None):
+def calculate_grishagin_mco(func_ids, alpha: float = 0., model: Model = None, iters_limit = None, eps = None, async_scheme=False, parallel_dots_count=None):
     if iters_limit is None:
         iters_limit = 16000
     if eps is None:
@@ -27,20 +30,23 @@ def calculate_grishagin_mco(func_ids, alpha: float = 0., model: Model = None, it
 
     params = SolverParameters(r=2.5, eps=eps, iters_limit=iters_limit,
                               number_of_lambdas=50, start_lambdas=[[0, 1]],
-                              is_scaling=False, number_of_parallel_points=2,
-                              async_scheme=False, alpha=alpha)
+                              is_scaling=False, number_of_parallel_points=parallel_dots_count,
+                              async_scheme=async_scheme, alpha=alpha)
 
     solver = Solver(problem=problem, parameters=params, model=model)
+
+    cfol = ConsoleOutputListener(mode='full')
+    solver.add_listener(cfol)
 
     sol = solver.solve()
 
     # output of the Pareto set (coordinates - function values)
-    val = [[trial.function_values[i].value for i in range(2)] for trial in sol.best_trials]
+    val = [[trial.function_values[i].value for i in range(len(func_ids))] for trial in sol.best_trials]
 
     hw = pg.hypervolume(val)
-    hw_index = hw.compute([1., 1.])
+    hw_index = hw.compute([1. for _ in range(len(func_ids))])
     # draw(solver, model)
-    return (hw_index, solver.method.iterations_count)
+    return (hw_index, solver.method.iterations_9count)
 
 def draw(solver: Solver, model: Model = None):
     ax = plt.gca()
@@ -72,9 +78,9 @@ def draw(solver: Solver, model: Model = None):
     plt.scatter(fit_data[:, 0], fit_data[:, 1], c=fit_data_class, s=30, cmap=plt.cm.Paired)
     plt.show()
 
-def solve(filename, target_eps_arr, alpha_arr, models, func_ids_arr):
+def solve(filename, target_eps_arr, alpha_arr, models, func_ids_arr, async_scheme, parallel_dots_count):
     with open(filename, "w") as f:
-        print("f = functions ids, a = alpha, hw = hw_index, n = number of iterations, e = target accuracy, m = model name", file=f)
+        print("f = functions ids, a = alpha, hw = hw_index, n = number of iterations, e = target accuracy, m = model name, p_dots = parallel_dots, async = is async", file=f)
         for func_ids in func_ids_arr:
             print("f", func_ids, file=f)
             print("f", func_ids)
@@ -86,13 +92,34 @@ def solve(filename, target_eps_arr, alpha_arr, models, func_ids_arr):
                         print("m", "mgsa", file=f)
                         print("m", "mgsa")
                     else:
-                        print("m", model.name(), file=f)
-                        print("m", model.name())
+                        if model.name().startswith("NN"):
+                            print("m", model.name() + "_" + str(model.weights[0]) + "_" + str(model.weights[1]), file=f)
+                            print("m", model.name() + "_" + str(model.weights[0]) + "_" + str(model.weights[1]))
+                            # if is_cuda:
+                            #     device = torch.device("cuda")
+                            #     print(f"Using device: {device}")
+                            # else:
+                            #     device = torch.device("cpu")
+                            #     print(f"Using device: {device}")
+                        else:
+                            print("m", model.name(), file=f)
+                            print("m", model.name())
+                    print("p_dots", parallel_dots_count, file=f)
+                    print("p_dots", parallel_dots_count)
+                    print("async", async_scheme, file=f)
+                    print("async", async_scheme)
+
                     for alpha in alpha_arr:
                         print("a", alpha, file=f)
                         print("a", alpha)
-                        hw_index, iter_count = calculate_grishagin_mco(func_ids, alpha=alpha, model=model, eps=target_eps)
+                        time1 = time.time()
+                        hw_index, iter_count = calculate_grishagin_mco(func_ids, alpha=alpha, model=model, eps=target_eps, parallel_dots_count=parallel_dots_count,
+                                                                        async_scheme=async_scheme)
+                        time2 = time.time()
+                        print("hw", hw_index, "n", iter_count)
                         print("hw", hw_index, "n", iter_count, file=f)
+                        print("t", time2 - time1)
+                        print("t", time2 - time1, file=f)
 
 if __name__ == "__main__":
     # generate 100 pairs of grishagin problem
@@ -111,14 +138,23 @@ if __name__ == "__main__":
     dt_string = now.strftime("%Y-%m-%d_%H-%M-%S")
     filename = "mso_grishagin_" + dt_string + "_task_" + str(task_id)
 
-
     func_ids_local = np.array_split(np.array(func_ids), task_count)[task_id]
 
-    solve("mso_grishagin_mgsa_" + dt_string + "_task_" +task_id + ".txt",         (0.1, 0.05, 0.01), [0.],   [None], func_ids_local)
-    solve("mso_grishagin_mgsa_dist_" + dt_string + "_task_" +task_id + ".txt",    (0.1, 0.05, 0.01), [0.01], [ModelLinearSVChyperplane()], func_ids_local)
-    solve("mso_grishagin_not_weighted_" + dt_string + "_task_" +task_id + ".txt", [0.01], (0.03, 0.09), (ModelLinearSVCproba(), ModelPolySVCproba(), ModelRbfSVCproba()), func_ids_local)
-    solve("mso_grishagin_weighted_" + dt_string + "_task_" +task_id + ".txt", (0.1, 0.05, 0.01), (0.03, 0.09),
-                                (ModelLinearSVCprobaAdjWeights(), ModelPolySVCprobaAdjWeights(), ModelRbfSVCprobaAdjWeights()), func_ids_local)
-    solve("mso_grishagin_log_norm_" + dt_string + "_task_" +task_id + ".txt", [0.01], (0.03, 0.09),
-                                (ModelLinearSVCprobaLogNorm(), ModelPolySVCprobaLogNorm(), ModelRbfSVCprobaLogNorm()), func_ids_local)
-    solve("mso_grishagin_mgsa_xgboost_" + dt_string + "_task_" +task_id + ".txt",    (0.1, 0.05, 0.01), [0.01, 0.02, 0.03, 0.04, 0.08], [ModelXGBoostProba()], func_ids_local)
+    time1 = time.time()
+    model_weights = [[0.05, 0.85]]
+    for (async_scheme, dots_count) in [(True, 2), (False, 2), (True, 2), (True, 4), (True, 8), (True, 16), (True, 20)]:
+        solve("mso_grishagin_mgsa_" + dt_string + "_task_" + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), [0.],   [None], func_ids_local, async_scheme, dots_count)
+        solve("mso_grishagin_mgsa_dist_" + dt_string + "_task_" + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), [0.01], [ModelLinearSVChyperplane()], func_ids_local, async_scheme, dots_count)
+        solve("mso_grishagin_log_norm_" + dt_string + "_task_" + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt",
+              (0.1, 0.05, 0.01), (0.04, 0.05), (ModelLinearSVCprobaLogNorm(), ModelPolySVCprobaLogNorm(), ModelRbfSVCprobaLogNorm()), func_ids_local, async_scheme, dots_count)
+        solve("mso_grishagin_NN_task_" + dt_string + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt", (0.1, 0.05, 0.01), [0.03, 0.05], [ModelNNProba(model_weight) for model_weight in model_weights], func_ids_local, async_scheme, dots_count)
+        solve("mso_grishagin_NN_task_1_layer_" + dt_string + str(task_id) + "_" + str(async_scheme) + "_" + str(dots_count) + ".txt", (0.1, 0.05, 0.01), [0.03, 0.05], [ModelNNProba1Layer(model_weight) for model_weight in model_weights], func_ids_local, async_scheme, dots_count)
+        # if torch.cuda.is_available():
+        #     solve("mso_grishagin_NN_task_" + dt_string + str(task_id) + ".txt", (0.1, 0.05, 0.01), [0.03, 0.05], [ModelNNProba(model_weight) for model_weight in model_weights], func_ids_local, True)
+        # else:
+        #     print("cuda is not available!")
+
+    time2 = time.time()
+    print("Total time for the script spent:", time2 - time1, "seconds")
