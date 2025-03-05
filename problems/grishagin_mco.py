@@ -44,7 +44,8 @@ class Grishagin_mco(Problem):
 
         self.count_functions = count_functions
         self.function_numbers = np.ndarray(shape=(self.count_functions, ), dtype=int)
-        if function_numbers:
+
+        if len(function_numbers):
             self.function_numbers = function_numbers #сюда бы проверки всякие запихнуть
         else:
             for i in range(count_functions):
