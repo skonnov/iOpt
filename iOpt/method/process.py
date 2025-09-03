@@ -67,8 +67,8 @@ class Process:
             while not self.method.check_stop_condition():
                 self.do_global_iteration()
 
-        except Exception:
-            print('Exception was thrown')
+        except Exception as e:
+            print('Exception was thrown: ', repr(e))
             print(traceback.format_exc())
 
         if self.parameters.refine_solution:

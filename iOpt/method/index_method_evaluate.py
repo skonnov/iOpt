@@ -38,8 +38,9 @@ class IndexMethodEvaluate(ICriterionEvaluateMethod):
             point = self.task.calculate(point, number_of_constraints)
             point.set_z(point.function_values[number_of_constraints].value)
             point.set_index(number_of_constraints)
-        except Exception:
+        except Exception as e:
             point.set_z(sys.float_info.max)
+            print("exception from IndexMethodEvaluate.calculate_functionals: ", repr(e))
             point.set_index(-10)
 
         return point

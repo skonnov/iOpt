@@ -284,8 +284,9 @@ class Method:
         """
         try:
             self.calculator.calculate_functionals_for_items([point])
-        except Exception:
+        except Exception as e:
             point.set_z(sys.float_info.max)
+            print("exception from Method: ", repr(e))
             point.set_index(-10)
 
         return point

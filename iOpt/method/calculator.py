@@ -59,8 +59,9 @@ class Calculator(DefaultCalculator):
         """
         try:
             Calculator.evaluate_method.calculate_functionals(point)
-        except Exception:
+        except Exception as e:
             point.set_z(sys.float_info.max)
+            print("exception from worker: ", repr(e))
             point.set_index(-10)
         return point
 

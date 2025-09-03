@@ -29,8 +29,9 @@ class DefaultCalculator:
         for point in points:
             try:
                 self.evaluate_method.calculate_functionals(point)
-            except Exception:
+            except Exception as e:
                 point.set_z(sys.float_info.max)
+                print("exception from DefaultCalculator: ", repr(e))
                 point.set_index(-10)
 
         return points

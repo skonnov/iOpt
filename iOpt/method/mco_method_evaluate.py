@@ -41,8 +41,10 @@ class MCOMethodEvaluate(IndexMethodEvaluate):
             point = self.task.calculate(point, -1, TypeOfCalculation.CONVOLUTION)
             point.set_index(number_of_constraints)
 
-        except Exception:
+        except Exception as e:
             point.set_z(sys.float_info.max)
+
+            print("exception from MCOMethodEvaluate.calculate_functionals: ", repr(e))
             point.set_index(-10)
 
         return point
