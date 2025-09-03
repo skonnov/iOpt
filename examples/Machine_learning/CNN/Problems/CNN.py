@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from thop import profile
+# from thop import profile
 
 class ExampleNet(nn.Module):
     def __init__(self, N_input: int, N_output: int, nodes_count: int):
@@ -146,10 +146,10 @@ class CNN(Problem):
             print('Epoch[{}]: accuracy = {}'.
             format(epoch, get_accuracy(train_data_loader, cnn)))
 
-    def _get_model_flop(self, model, input_tensor):
-        macs, _ = profile(model, inputs=(input_tensor,), verbose=False)
-        total_flops = macs * 2  # Convert MACs to FLOPs
-        return total_flops
+    # def _get_model_flop(self, model, input_tensor):
+    #     macs, _ = profile(model, inputs=(input_tensor,), verbose=False)
+    #     total_flops = macs * 2  # Convert MACs to FLOPs
+    #     return total_flops
 
     def calculate(self, point: Point, function_value: FunctionValue) -> FunctionValue:
         print("function_value.functionID: ", function_value.functionID)
@@ -158,8 +158,8 @@ class CNN(Problem):
             kernel_size = int(kernel_size)
 
             batch_size = 4
-            num_epochs = 5
-            # num_epochs = 1
+            # num_epochs = 5
+            num_epochs = 1
             train_data_loader, test_data_loader = self._get_data_loaders(batch_size=batch_size)
             print("learning_rate: ", learning_rate)
             print("kernel_size: ", kernel_size)
@@ -180,9 +180,9 @@ class CNN(Problem):
             self.time = time.time() - time1
 
         if function_value.functionID == 0: # time (TODO: fps)
-            function_value.value = -self.time
+            function_value.value = self.time
         if function_value.functionID == 1:
-            function_value.value = self.test_accuracy
+            function_value.value = -self.test_accuracy
 
         print(f"calculate for {function_value.functionID} objective, got {function_value.value} result")
         print(type(function_value.value))

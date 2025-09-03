@@ -51,7 +51,7 @@ class Solver:
         self.calculator = SolverFactory.create_calculator(self.task, self.parameters)
 
         self.method = SolverFactory.create_method(parameters, self.task, self.evolvent,
-                                                  self.search_data, self.calculator)
+                                                  self.search_data, self.calculator, model)
         self.process = SolverFactory.create_process(parameters=parameters, task=self.task, evolvent=self.evolvent,
                                                     search_data=self.search_data, method=self.method,
                                                     listeners=self.__listeners, calculator=self.calculator)

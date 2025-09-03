@@ -3,7 +3,7 @@ from iOpt.method.search_data import SearchDataItem
 from sklearn.preprocessing import MinMaxScaler
 
 from sklearn.neural_network import MLPClassifier
-from imblearn.over_sampling import RandomOverSampler
+
 import torch.optim as optim
 import random as rd
 class ModelMLPProba(Model):  # scaled, adjusted weights
