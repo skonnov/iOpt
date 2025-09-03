@@ -20,8 +20,6 @@ class DefaultCalculator:
         self.evaluate_method = evaluate_method
         self.parameters = parameters
 
-
-
     def calculate_functionals_for_items(self, points: list[SearchDataItem]) -> list[SearchDataItem]:
         r"""
         Метод проведения испытаний для множества точек
@@ -36,4 +34,3 @@ class DefaultCalculator:
                 point.set_index(-10)
 
         return points
-

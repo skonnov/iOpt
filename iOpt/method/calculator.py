@@ -10,6 +10,9 @@ from iOpt.solver_parametrs import SolverParameters
 
 import sys
 
+import multiprocess.context as ctx
+import os
+
 # возможно стоит удалить
 sys.setrecursionlimit(10000)
 
@@ -29,12 +32,14 @@ class Calculator(DefaultCalculator):
         """
         self.evaluate_method = evaluate_method
         self.parameters = parameters
+
         Calculator.worker_init(self.evaluate_method)
+        if os.name == 'posix':
+            ctx._force_start_method('spawn')
+
         self.pool = ProcessPool(parameters.number_of_parallel_points,
-                                       initializer=Calculator.worker_init,
-                                       initargs=(self.evaluate_method,))
-
-
+                                initializer=Calculator.worker_init,
+                                initargs=(self.evaluate_method,))
 
     @staticmethod
     def worker_init(evaluate_method: ICriterionEvaluateMethod):
@@ -44,7 +49,6 @@ class Calculator(DefaultCalculator):
         :param evaluate_method: a computational method that performs search trials according to specified rules.
         """
         Calculator.evaluate_method = evaluate_method
-
 
     @staticmethod
     def worker(point: SearchDataItem) -> SearchDataItem:
@@ -59,7 +63,6 @@ class Calculator(DefaultCalculator):
             point.set_z(sys.float_info.max)
             point.set_index(-10)
         return point
-
 
     def calculate_functionals_for_items(self, points: list[SearchDataItem]) -> list[SearchDataItem]:
         r"""

@@ -34,10 +34,10 @@ class Method:
         r"""
         Method class constructor
 
-        :param parameters: параметры решения задачи оптимизации.
-        :param task: обёртка решаемой задачи.
-        :param evolvent: развертка Пеано-Гильберта, отображающая отрезок [0,1] на многомерную область D.
-        :param search_data: структура данных для хранения накопленной поисковой информации.
+        :param parameters: parameters for solving the optimization problem.
+        :param task: problem wrapper.
+        :param evolvent: Peano-Hilbert evolvent mapping the segment [0,1] to the multidimensional region D.
+        :param search_data: data structure for storing accumulated search information.
         :param calculator: class containing trial methods (parallel and/or inductive circuit)
         """
 
@@ -91,9 +91,9 @@ class Method:
 
         # Генерация 3х точек 0, 0.5, 1. Значение функции будет вычисляться только в точке 0.5.
         # Интервал задаётся правой точкой, т.е. будут интервалы только для 0.5 и 1
-        left = SearchDataItem(Point(self.evolvent.get_image(0.0), None), 0.,
+        left = SearchDataItem(Point(self.evolvent.get_image(0.0), []), 0.,
                               function_values=[FunctionValue()] * self.numberOfAllFunctions)
-        right = SearchDataItem(Point(self.evolvent.get_image(1.0), None), 1.0,
+        right = SearchDataItem(Point(self.evolvent.get_image(1.0), []), 1.0,
                                function_values=[FunctionValue()] * self.numberOfAllFunctions)
 
         items: list[SearchDataItem] = []
@@ -102,7 +102,7 @@ class Method:
             number_of_point: int = self.parameters.number_of_parallel_points - 1
             h: float = 1.0 / (number_of_point + 1)
 
-            ystart_point = Point(copy.copy(self.parameters.start_point.float_variables), None)
+            ystart_point = Point(copy.copy(self.parameters.start_point.float_variables), [])
             xstart_point = self.evolvent.get_inverse_image(self.parameters.start_point.float_variables)
 
             itemstart_point = SearchDataItem(ystart_point, xstart_point,
@@ -112,7 +112,7 @@ class Method:
 
             for i in range(number_of_point):
                 x = h * (i + 1)
-                y = Point(self.evolvent.get_image(x), None)
+                y = Point(self.evolvent.get_image(x), [])
                 item = SearchDataItem(y, x,
                                       function_values=[FunctionValue()] * self.numberOfAllFunctions)
                 if x < xstart_point < h * (i + 2):
@@ -131,12 +131,23 @@ class Method:
 
             for i in range(number_of_point):
                 x = h * (i + 1)
-                y = Point(self.evolvent.get_image(x), None)
+                y = Point(self.evolvent.get_image(x), [])
                 item = SearchDataItem(y, x,
                                       function_values=[FunctionValue()] * self.numberOfAllFunctions)
                 items.append(item)
 
-        self.calculator.calculate_functionals_for_items(items)
+        # временное решение проблемы падения метода в невычислимой точке первой итерации
+        if self.parameters.number_of_parallel_points == 1:
+            try:
+                self.calculator.calculate_functionals_for_items(items)
+            except Exception:
+                items[0].set_z(sys.float_info.max)
+                items[0].set_index(-10)
+
+            if items[0].get_index() == -10:
+                self.non_computable_iterations_count += 1
+        else:
+            self.calculator.calculate_functionals_for_items(items)
 
         for item in items:
             self.update_optimum(item)
@@ -371,7 +382,7 @@ a new point into the repository
         End the iteration, updates the iteration counter
         """
         self.search_data.get_last_item().creation_time = time()
-        self.search_data.get_last_item().iterationNumber = self.iterations_count #будет ли работать в параллельном случае?
+        self.search_data.get_last_item().iterationNumber = self.iterations_count  # будет ли работать в параллельном случае?
         self.iterations_count += 1
 
     def get_iterations_count(self) -> int:

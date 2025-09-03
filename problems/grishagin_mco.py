@@ -44,8 +44,7 @@ class Grishagin_mco(Problem):
 
         self.count_functions = count_functions
         self.function_numbers = np.ndarray(shape=(self.count_functions, ), dtype=int)
-
-        if len(function_numbers):
+        if function_numbers:
             self.function_numbers = function_numbers #сюда бы проверки всякие запихнуть
         else:
             for i in range(count_functions):
@@ -61,7 +60,7 @@ class Grishagin_mco(Problem):
         Вычисление значения выбранной функции в заданной точке.
 
         :param point: координаты точки испытания, в которой будет вычислено значение функции
-        :param function_value: объект определяющий номер функции в задаче и хранящий значение функции
+        :param function_value: объект, определяющий номер функции в задаче и хранящий значение функции
         :return: Вычисленное значение функции в точке point
         """
         function_value.value = self.functions[function_value.functionID].Calculate(point.float_variables)

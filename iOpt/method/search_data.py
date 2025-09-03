@@ -140,7 +140,7 @@ class SearchDataItem(Trial):
     def __lt__(self, other) -> bool:
         """
         The method overrides the < comparison operator for two intervals
-        
+
         :param other: Second interval.
         :return: The value is true - if the right point of the initial interval is less than the
         the right point of the second interval, otherwise - false.
@@ -359,6 +359,7 @@ class SearchData:
         """
         Save the optimization process to a file
 
+        :param mode: 'full' - save all optimization information
         :param file_name: file name.
         """
         data = {}

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import sys
 
 import numpy as np
 
@@ -12,7 +11,6 @@ from iOpt.method.search_data import SearchData
 from iOpt.method.search_data import SearchDataItem
 from iOpt.solver_parametrs import SolverParameters
 from iOpt.method.method import Method
-from iOpt.trial import FunctionValue, FunctionType
 
 
 class IndexMethod(Method):
@@ -124,11 +122,11 @@ class IndexMethod(Method):
 
         :param point: the point of a new trial.
         """
-
-        if self.best is None or self.best.get_index() < point.get_index() or (
-                self.best.get_index() == point.get_index() and point.get_z() < self.best.get_z()):
-            self.best = point
-            self.recalcR = True
-            self.Z[point.get_index()] = point.get_z()
-        # self.UpdateZ(point)
-        self.search_data.solution.best_trials[0] = self.best
+        if point.get_index() >= 0:
+            if self.best is None or self.best.get_index() < point.get_index() or (
+                    self.best.get_index() == point.get_index() and point.get_z() < self.best.get_z()):
+                self.best = point
+                self.recalcR = True
+                self.Z[point.get_index()] = point.get_z()
+            # self.UpdateZ(point)
+            self.search_data.solution.best_trials[0] = self.best

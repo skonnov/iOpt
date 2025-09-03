@@ -4,7 +4,7 @@ from iOpt.trial import Point
 
 class SolverParameters:
     """
-    Класс SolverParameters позволяет определить параметры поиска оптимального решения
+    The SolverParameters class allows you to define the parameters for searching the optimal solution
     """
 
     def __init__(self,
@@ -68,7 +68,7 @@ class SolverParameters:
         self.timeout = timeout
 
 
-        self.start_lambdas = start_lambdas # ��� �� ��������, ��� ��� � ����� ���� 1 � ��� �� ������ ����������
+        self.start_lambdas = start_lambdas
         self.number_of_lambdas = number_of_lambdas
         self.is_scaling = is_scaling
 
