@@ -104,13 +104,6 @@ class CNN(Problem):
 
         # self.discrete_variable_names.append('number_of_nodes')
 
-
-        # Variables to set objectives. Needed because objectives calculation function is called separately for each
-        # objective, but for current problem it is calculated only once after one inference.
-        self.test_accuracy = 0.
-        self.time = 0.
-
-
     def _get_data_loaders(self, batch_size):
         transform = transforms.Compose(
         [transforms.ToTensor(),
@@ -151,40 +144,35 @@ class CNN(Problem):
     #     total_flops = macs * 2  # Convert MACs to FLOPs
     #     return total_flops
 
-    def calculate(self, point: Point, function_value: FunctionValue) -> FunctionValue:
-        print("function_value.functionID: ", function_value.functionID)
-        if function_value.functionID == 0:
-            learning_rate, kernel_size = point.float_variables[0], point.float_variables[1]
-            kernel_size = int(kernel_size)
+    def calculateAllFunction(self, point: Point, function_values: np.ndarray(shape=(1), dtype=FunctionValue)):
 
-            batch_size = 4
-            # num_epochs = 5
-            num_epochs = 1
-            train_data_loader, test_data_loader = self._get_data_loaders(batch_size=batch_size)
-            print("learning_rate: ", learning_rate)
-            print("kernel_size: ", kernel_size)
+        learning_rate, kernel_size = point.float_variables[0], point.float_variables[1]
+        kernel_size = int(kernel_size)
 
-            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            print("device: ", device)
-            cnn = ExampleCNN()
-            cnn.to(device)
+        batch_size = 4
+        num_epochs = 5
+        # num_epochs = 1
+        train_data_loader, test_data_loader = self._get_data_loaders(batch_size=batch_size)
+        print("learning_rate: ", learning_rate)
+        print("kernel_size: ", kernel_size)
 
-            self._train(cnn=cnn,
-                        train_data_loader=train_data_loader,
-                        device=device,
-                        num_epochs=num_epochs,
-                        learning_rate=learning_rate)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print("device: ", device)
+        cnn = ExampleCNN()
+        cnn.to(device)
 
-            time1 = time.time()
-            self.test_accuracy = float(get_accuracy(test_data_loader, cnn))
-            self.time = time.time() - time1
+        self._train(cnn=cnn,
+                    train_data_loader=train_data_loader,
+                    device=device,
+                    num_epochs=num_epochs,
+                    learning_rate=learning_rate)
 
-        if function_value.functionID == 0: # time (TODO: fps)
-            function_value.value = self.time
-        if function_value.functionID == 1:
-            function_value.value = -self.test_accuracy
+        time1 = time.time()
+        test_accuracy = float(get_accuracy(test_data_loader, cnn))
+        time2 = time.time()
+        function_values[0].value = time2 - time1
+        function_values[1].value = -test_accuracy
 
-        print(f"calculate for {function_value.functionID} objective, got {function_value.value} result")
-        print(type(function_value.value))
-        return function_value
+        print(f"time: {time}, function_values: {function_values}")
+        return function_values
 
