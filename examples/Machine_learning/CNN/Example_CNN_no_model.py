@@ -15,7 +15,7 @@ if __name__ == "__main__":
     fc_size = {'low': 16., 'up': 256.}
     problem = CNN.CNN(learning_rate, fc_size)
     method_params = SolverParameters(r=2.5, eps=0.01, start_lambdas=[[0, 1]], iters_limit=400, alpha=0.4)
-    solver = Solver(problem, parameters=method_params, model=ModelLinearSVCproba())
+    solver = Solver(problem, parameters=method_params)
     cfol = ConsoleOutputListener(mode='full')
     solver.add_listener(cfol)
     solver_info = solver.solve()

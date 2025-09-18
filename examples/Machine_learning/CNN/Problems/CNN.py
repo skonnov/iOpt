@@ -11,7 +11,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
 
-
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
@@ -36,16 +35,16 @@ class ExampleNet(nn.Module):
         return x
 
 class ExampleCNN(nn.Module):
-    def __init__(self, kernel_size=3, num_classes=10, ):
+    def __init__(self, channel_count=16, kernel_size=3, num_classes=10, fc_size=128):
         super(ExampleCNN, self).__init__()
         # Convolutional layers
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=kernel_size, stride=1, padding=1)  # Input: 3 channels (RGB)
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=kernel_size, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, channel_count, kernel_size=kernel_size, stride=1, padding=1)  # Input: 3 channels (RGB)
+        self.conv2 = nn.Conv2d(channel_count, channel_count * 2, kernel_size=kernel_size, stride=1, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # Reduces spatial dimensions by half
 
         # Fully connected layers
-        self.fc1 = nn.Linear(32 * 8 * 8, 128)  # Adjust input size based on image dimensions
-        self.fc2 = nn.Linear(128, num_classes)  # Output layer (num_classes)
+        self.fc1 = nn.Linear(channel_count * 2 * 8 * 8, fc_size)  # Adjust input size based on image dimensions
+        self.fc2 = nn.Linear(fc_size, num_classes)  # Output layer (num_classes)
 
     def forward(self, x):
         # Conv + ReLU + Pooling
@@ -63,12 +62,12 @@ class ExampleCNN(nn.Module):
 def get_accuracy(data_loader, model):
     tp = 0
     n = 0
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         for images, labels in data_loader: # проход по всем данным
             # Получение выхода сети на входной пачке изображений
-
-            images = images.to(torch.device("cuda"))
-            labels = labels.to(torch.device("cuda"))
+            images = images.to(device)
+            labels = labels.to(device)
             outputs = model(images)
             # Выбор предсказанных меток с максимальной достоверностью.
             # outputs.data - объект типа torch.tensor, двумерный тензор, массив
@@ -85,7 +84,7 @@ def get_accuracy(data_loader, model):
 class CNN(Problem):
     def __init__(self, #x_dataset: np.ndarray, y_dataset: np.ndarray,
                  learning_rate_bound: Dict[str, float],
-                 kernel_size: Dict[str, float]):
+                 fc_size_bound: Dict[str, float]):
         super(CNN, self).__init__()
         self.name = "CNN"
         self.dimension = 2 # number of nodes on the first layer, learning rate
@@ -97,9 +96,9 @@ class CNN(Problem):
         #     raise ValueError('The input and output sample sizes do not match.')
         # self.x = x_dataset
         self.float_variable_names = np.array(["learning_rate", "nodes_count"], dtype=str)
-        self.lower_bound_of_float_variables = np.array([learning_rate_bound['low'], kernel_size['low']],
+        self.lower_bound_of_float_variables = np.array([learning_rate_bound['low'], fc_size_bound['low']],
                                                    dtype=np.double)
-        self.upper_bound_of_float_variables = np.array([learning_rate_bound['up'],  kernel_size['up']],
+        self.upper_bound_of_float_variables = np.array([learning_rate_bound['up'],  fc_size_bound['up']],
                                                    dtype=np.double)
 
         # self.discrete_variable_names.append('number_of_nodes')
@@ -146,19 +145,18 @@ class CNN(Problem):
 
     def calculateAllFunction(self, point: Point, function_values: np.ndarray(shape=(1), dtype=FunctionValue)):
 
-        learning_rate, kernel_size = point.float_variables[0], point.float_variables[1]
-        kernel_size = int(kernel_size)
-
+        learning_rate, fc_size = point.float_variables[0], point.float_variables[1]
+        fc_size=int(fc_size)
         batch_size = 4
         num_epochs = 5
         # num_epochs = 1
         train_data_loader, test_data_loader = self._get_data_loaders(batch_size=batch_size)
         print("learning_rate: ", learning_rate)
-        print("kernel_size: ", kernel_size)
+        print("fc_size: ", fc_size)
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print("device: ", device)
-        cnn = ExampleCNN()
+        cnn = ExampleCNN(fc_size=fc_size)
         cnn.to(device)
 
         self._train(cnn=cnn,
@@ -167,11 +165,19 @@ class CNN(Problem):
                     num_epochs=num_epochs,
                     learning_rate=learning_rate)
 
-        time1 = time.time()
-        test_accuracy = float(get_accuracy(test_data_loader, cnn))
-        time2 = time.time()
-        function_values[0].value = time2 - time1
-        function_values[1].value = -test_accuracy
+        times = []
+        accuracies = []
+        infer_repeats = 1
+        for _ in range(infer_repeats):
+            time1 = time.time()
+            test_accuracy = float(get_accuracy(test_data_loader, cnn))
+            time2 = time.time()
+            times.append(time2 - time1)
+            accuracies.append(test_accuracy)
+        print(times)
+        print(accuracies)
+        function_values[0].value = np.mean(times)
+        function_values[1].value = -np.mean(test_accuracy)
 
         print(f"time: {time}, function_values: {function_values}")
         return function_values
