@@ -42,6 +42,7 @@ class ExampleCNN(nn.Module):
         self.conv2 = nn.Conv2d(channel_count, channel_count * 2, kernel_size=kernel_size, stride=1, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # Reduces spatial dimensions by half
 
+        self.gap  = nn.AdaptiveAvgPool2d(1)     # size-agnostic
         # Fully connected layers
         self.fc1 = nn.Linear(channel_count * 2 * 8 * 8, fc_size)  # Adjust input size based on image dimensions
         self.fc2 = nn.Linear(fc_size, num_classes)  # Output layer (num_classes)
@@ -50,9 +51,9 @@ class ExampleCNN(nn.Module):
         # Conv + ReLU + Pooling
         x = self.pool(F.relu(self.conv1(x)))  # After conv1: (16, H/2, W/2)
         x = self.pool(F.relu(self.conv2(x)))  # After conv2: (32, H/4, W/4)
-
+        x = self.gap(x).flatten(1)
         # Flatten for FC layers
-        x = x.view(-1, 32 * 8 * 8)  # Adjust based on final feature map size
+        # x = x.view(-1, 32 * 8 * 8)  # Adjust based on final feature map sizey
 
         # FC layers
         x = F.relu(self.fc1(x))
