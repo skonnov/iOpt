@@ -24,26 +24,30 @@ from dataclasses import dataclass
 
 Vec2 = Tuple[float, float]
 
+# -------------------- Wake + Power model (Jensen-like) --------------------
+
 @dataclass(frozen=True)
 class TurbineSpec:
     rotor_diameter_m: float          # D
     hub_height_m: float              # z
-    z0_m: float                      # surface roughness
+    z0_m: float                      # roughness
     ct: float                        # thrust coefficient (assumed constant)
     rho_kg_m3: float = 1.225
-    cp: float = 0.45
+    cp: float = 0.45                 # simplified constant Cp
 
     cut_in_mps: Optional[float] = 3.0
     rated_mps: Optional[float] = 12.0
     cut_out_mps: Optional[float] = 25.0
-    rated_power_w: Optional[float] = None
+    rated_power_w: Optional[float] = 3_000_000.0  # optional cap
 
 
 def ct_to_a(ct: float) -> float:
+    # CT = 4 a (1-a) -> a = (1 - sqrt(1-CT))/2
     return (1.0 - np.sqrt(max(0.0, 1.0 - ct))) / 2.0
 
 
 def circle_intersection_area(r1: float, r2: float, d: float) -> float:
+    """Overlap area of two circles radii r1,r2 with center distance d."""
     if d >= r1 + r2:
         return 0.0
     if d <= abs(r1 - r2):
@@ -56,6 +60,7 @@ def circle_intersection_area(r1: float, r2: float, d: float) -> float:
 
 
 def turbine_power_w(u: float, spec: TurbineSpec) -> float:
+    """Cubic power with cut-in/out and rated cap."""
     if spec.cut_in_mps is not None and u < spec.cut_in_mps:
         return 0.0
     if spec.cut_out_mps is not None and u > spec.cut_out_mps:
@@ -70,37 +75,25 @@ def turbine_power_w(u: float, spec: TurbineSpec) -> float:
     return p
 
 
-def min_distance_violations(
-    coords_m: Sequence[Vec2],
-    min_dist_m: float,
-) -> Tuple[int, float]:
-    """
-    Returns:
-      - count of violating pairs
-      - total violation magnitude sum(max(0, min_dist - dij))
-    """
+def min_distance_ok(coords_m: Sequence[Vec2], min_dist_m: float) -> bool:
     n = len(coords_m)
-    count = 0
-    mag = 0.0
     for i in range(n):
         xi, yi = coords_m[i]
         for j in range(i + 1, n):
             xj, yj = coords_m[j]
-            dij = np.hypot(xi - xj, yi - yj)
-            v = max(0.0, min_dist_m - dij)
-            if v > 0.0:
-                count += 1
-                mag += v
-    return count, mag
+            if np.hypot(xi - xj, yi - yj) < min_dist_m:
+                return False
+    return True
 
 
-def compute_powers_jensen_2d_coords_m(
+def compute_powers_jensen_2d(
     coords_m: Sequence[Vec2],
     u0_mps: float,
-    wind_dir_deg: float,
+    wind_dir_deg: float,   # 0° -> flow to +x
     spec: TurbineSpec,
     use_overlap: bool = True,
 ) -> List[float]:
+    """Returns per-turbine power (W) for the given layout."""
     n = len(coords_m)
     if n == 0:
         return []
@@ -127,6 +120,7 @@ def compute_powers_jensen_2d_coords_m(
             xi, yi = coords_m[i]
             dx, dy = (xj - xi), (yj - yi)
 
+            # along-wind distance s and cross-wind offset d
             s = dx * ex + dy * ey
             if s <= 0.0:
                 continue
@@ -157,32 +151,11 @@ def compute_powers_jensen_2d_coords_m(
     return powers
 
 
-def objective_with_min_dist_penalty(
-    coords_m: Sequence[Vec2],
-    u0_mps: float,
-    wind_dir_deg: float,
-    spec: TurbineSpec,
-    min_dist_multiplier: float = 1.0,  # <-- 1.5D constraint
-    penalty_per_meter: float = 1e9,     # big-M penalty weight
-) -> Tuple[float, List[float], Tuple[int, float]]:
-    """
-    Minimization objective = -total_power + penalty
+def mean_distance_to_center(coords_m: Sequence[Vec2], cx: float, cy: float) -> float:
+    return sum(np.hypot(x - cx, y - cy) for (x, y) in coords_m) / max(1, len(coords_m))
 
-    Returns:
-      obj_value,
-      per_turbine_powers,
-      (violating_pairs_count, total_violation_meters)
-    """
-    powers = compute_powers_jensen_2d_coords_m(coords_m, u0_mps, wind_dir_deg, spec, use_overlap=True)
-    total_power = sum(powers)
 
-    min_dist_m = min_dist_multiplier * spec.rotor_diameter_m
-    nviol, vmag = min_distance_violations(coords_m, min_dist_m)
-
-    penalty = penalty_per_meter * vmag  # 0 if feasible
-    obj = -total_power + penalty
-    return obj, powers, (nviol, vmag)
-
+# -------------------- Optuna multi-objective optimization --------------------
 
 def coords_in_D_to_m(coords_in_D: Sequence[Vec2], D_m: float) -> List[Vec2]:
     """If coords are given in multiples of D (0..10), convert to meters."""
@@ -229,13 +202,9 @@ class Windfarm(Problem):
         center_x = 5
         center_y = 5
 
-        sum_distance_to_center = 0
+
         for i in range(self.windturbines_count):
             coords_D.append((np.round(point.float_variables[2 * i]), np.round(point.float_variables[2 * i + 1])))
-            x = np.round(point.float_variables[2 * i])
-            y = np.round(point.float_variables[2 * i + 1])
-            sum_distance_to_center += np.sqrt((y - center_y) ** 2 + (x - center_x) ** 2)
-        avg_distnace_to_center = sum_distance_to_center / self.windturbines_count
 
         coords_m = coords_in_D_to_m(coords_D, self.spec.rotor_diameter_m)
         wind_speed = point.float_variables[2 * self.windturbines_count]
@@ -248,15 +217,20 @@ class Windfarm(Problem):
         #     use_overlap=True,
         # )
 
-        obj, powers, viol = objective_with_min_dist_penalty(
-            coords_m=coords_m,
-            u0_mps=8.0,
-            wind_dir_deg=0.0,
-            spec=self.spec,
-            min_dist_multiplier=1, # constraint: dij >= 1.0D
-            penalty_per_meter=1e9,
-        )
 
-        function_values[0].value = obj
-        function_values[1].value = avg_distnace_to_center
+
+        powers = compute_powers_jensen_2d(coords_m, wind_speed, 0.0, self.spec, use_overlap=True)
+        total_power = sum(powers)
+        avg_dist = mean_distance_to_center(coords_m, center_x, center_y)
+
+
+        min_dist_m = 1.5 * self.spec.rotor_diameter_m
+        if not min_distance_ok(coords_m, min_dist_m):
+            function_values[0].value = 1e15
+            function_values[1].value = avg_dist
+            return function_values
+
+
+        function_values[0].value = -total_power / 1e6
+        function_values[1].value = avg_dist / self.spec.rotor_diameter_m
         return function_values

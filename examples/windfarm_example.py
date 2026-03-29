@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
     problem = Windfarm(windturbines_count)
     # method_params = SolverParameters(r=2.5, eps=0.01, start_lambdas=[[0, 1]], iters_limit=400, alpha=0.4)
-    method_params = SolverParameters(r=2.5, eps=0.01, start_lambdas=[[0, 1]], alpha=0.4, iters_limit=5000)
-    solver = Solver(problem, parameters=method_params, model=ModelLinearSVCproba())
+    method_params = SolverParameters(r=2.5, eps=0.01, start_lambdas=[[0, 1]], alpha=0.4, iters_limit=20000)
+    solver = Solver(problem, parameters=method_params)
 
     cfol = ConsoleOutputListener(mode='full')
     solver.add_listener(cfol)
