@@ -178,12 +178,13 @@ class Windfarm(Problem):
         for i in range(windturbines_count):
             self.float_variable_names[i * 2] = str(f"turbine_{i}_x")
             self.float_variable_names[i * 2 + 1] = str(f"turbine_{i}_y")
-        self.float_variable_names[2 * windturbines_count] = str("wind speed")
+        self.float_variable_names[2 * windturbines_count] = str("wind degree")
 
         self.lower_bound_of_float_variables = np.ndarray(shape=(windturbines_count * 2 + 1), dtype=np.double)
         self.lower_bound_of_float_variables.fill(0)
         self.upper_bound_of_float_variables = np.ndarray(shape=(windturbines_count * 2 + 1), dtype=np.double)
         self.upper_bound_of_float_variables.fill(10)
+        self.upper_bound_of_float_variables[-1] = 359
 
         self.windturbines_count = windturbines_count
         self.spec = TurbineSpec(
@@ -199,16 +200,19 @@ class Windfarm(Problem):
         coords_D = []
 
 
-        center_x = 5
-        center_y = 5
+        center_x = float(5 * self.spec.rotor_diameter_m) + 5
+        center_y = float(5 * self.spec.rotor_diameter_m) + 5
+        # center_x = 5
+        # center_y = 5
 
 
         for i in range(self.windturbines_count):
-            coords_D.append((np.round(point.float_variables[2 * i]), np.round(point.float_variables[2 * i + 1])))
+            # coords_D.append((np.round(point.float_variables[2 * i]), np.round(point.float_variables[2 * i + 1])))
+            coords_D.append((point.float_variables[2 * i], point.float_variables[2 * i + 1]))
 
         coords_m = coords_in_D_to_m(coords_D, self.spec.rotor_diameter_m)
-        wind_speed = point.float_variables[2 * self.windturbines_count]
-        print(coords_D, wind_speed)
+        wind_degree = point.float_variables[-1]
+        print(coords_D, wind_degree)
         # P = compute_powers_jensen_2d_coords_m(
         #     coords_m=coords_m,
         #     u0_mps=wind_speed,
@@ -219,7 +223,7 @@ class Windfarm(Problem):
 
 
 
-        powers = compute_powers_jensen_2d(coords_m, wind_speed, 0.0, self.spec, use_overlap=True)
+        powers = compute_powers_jensen_2d(coords_m, u0_mps=10.0, wind_dir_deg=wind_degree, spec=self.spec, use_overlap=True)
         total_power = sum(powers)
         avg_dist = mean_distance_to_center(coords_m, center_x, center_y)
 
