@@ -11,6 +11,8 @@ import os
 from iOpt.method.search_data import SearchData, SearchDataItem
 import pygmo as pg
 import csv, json
+from datetime import datetime
+
 if __name__ == "__main__":
 
     # problem = Car()
@@ -34,9 +36,11 @@ if __name__ == "__main__":
     # print("hw index: ", hw_index)
 
     hw_thresholds = [3, 0.01, 0.01]
-    alphas = np.arange(0.15, 0.15 + 1e-12, 0.02)
+    alphas = np.arange(0.03, 0.15 + 1e-12, 0.02)
 
-    output_file = "hw_results.csv"
+    now = datetime.now()
+    dt_string = now.strftime("%Y-%m-%d_%H-%M-%S")
+    output_file = f"hw_results_{dt_string}.csv"
 
     with open(output_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -47,7 +51,7 @@ if __name__ == "__main__":
 
 
             problem = Car()
-            method_params = SolverParameters(r=4, eps=0.1, start_lambdas=[[i % 2 for i in range(3)]], alpha=0.1, iters_limit=20000)
+            method_params = SolverParameters(r=4, eps=0.01, start_lambdas=[[i % 2 for i in range(3)]], alpha=alpha, iters_limit=200)
             solver = Solver(problem, parameters=method_params, model=ModelRbfSVCproba())
 
             cfol = ConsoleOutputListener(mode='full')
